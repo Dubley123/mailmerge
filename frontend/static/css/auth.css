@@ -1,0 +1,206 @@
+/*
+ * 登录/注册页面样式
+ * 居中布局，卡片式设计
+ */
+
+/* 登录页面容器 */
+.auth-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 20px;
+}
+
+/* 登录卡片 */
+.auth-card {
+    width: 100%;
+    max-width: 420px;
+    background: white;
+    border-radius: var(--radius-lg);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+}
+
+/* 卡片头部 */
+.auth-header {
+    padding: 40px 40px 30px;
+    text-align: center;
+    background: white;
+}
+
+.auth-logo {
+    font-size: 48px;
+    margin-bottom: 16px;
+}
+
+.auth-title {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+}
+
+.auth-subtitle {
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+/* 卡片主体 */
+.auth-body {
+    padding: 0 40px 40px;
+}
+
+/* 表单组 */
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.form-label-required::after {
+    content: " *";
+    color: var(--error-color);
+}
+
+.auth-input {
+    width: 100%;
+    height: 44px;
+    padding: 0 16px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+.auth-input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(58, 122, 254, 0.1);
+}
+
+.auth-select {
+    width: 100%;
+    height: 44px;
+    padding: 0 16px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.auth-select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(58, 122, 254, 0.1);
+}
+
+/* 错误提示 */
+.form-error {
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--error-color);
+}
+
+/* 提交按钮 */
+.auth-submit {
+    width: 100%;
+    height: 44px;
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 24px;
+}
+
+.auth-submit:hover {
+    background: var(--primary-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(58, 122, 254, 0.4);
+}
+
+.auth-submit:active {
+    background: var(--primary-active);
+    transform: translateY(0);
+}
+
+.auth-submit:disabled {
+    background: var(--text-disabled);
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* 底部链接 */
+.auth-footer {
+    margin-top: 24px;
+    text-align: center;
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+.auth-link {
+    color: var(--primary-color);
+    font-weight: 500;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.auth-link:hover {
+    color: var(--primary-hover);
+    text-decoration: underline;
+}
+
+/* 分割线 */
+.auth-divider {
+    display: flex;
+    align-items: center;
+    margin: 24px 0;
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border-color);
+}
+
+.auth-divider::before {
+    margin-right: 12px;
+}
+
+.auth-divider::after {
+    margin-left: 12px;
+}
+
+/* 响应式设计 */
+@media (max-width: 480px) {
+    .auth-card {
+        max-width: 100%;
+    }
+    
+    .auth-header {
+        padding: 30px 24px 20px;
+    }
+    
+    .auth-body {
+        padding: 0 24px 30px;
+    }
+    
+    .auth-title {
+        font-size: 20px;
+    }
+}

@@ -1,0 +1,76 @@
+<!-- 首页概览页面 -->
+<link rel="stylesheet" href="/frontend/static/css/dashboard.css">
+
+<div class="dashboard-container" id="dashboardContainer">
+    <div class="dashboard-loading" id="loadingIndicator">
+        正在加载数据...<br>
+        <small id="debugInfo" style="color: #999; font-size: 12px;"></small>
+    </div>
+</div>
+
+<script>
+(function() {
+    console.log('[Dashboard] 脚本开始执行');
+    
+    function addDebugInfo(msg) {
+        const debugEl = document.getElementById('debugInfo');
+        if (debugEl) debugEl.innerHTML += msg + '<br>';
+        console.log('[Dashboard]', msg);
+    }
+    
+    addDebugInfo('脚本开始: ' + new Date().toLocaleTimeString());
+    addDebugInfo('CommonAPI: ' + (typeof CommonAPI !== 'undefined'));
+    
+    async function getDashboardData() {
+        addDebugInfo('调用 API...');
+        try {
+            const result = await CommonAPI.get('/api/dashboard/overview');
+            addDebugInfo('API 成功');
+            return result.success ? { success: true, data: result.data } : { success: false, message: result.message || '获取失败' };
+        } catch (error) {
+            addDebugInfo('API 错误: ' + error.message);
+            return { success: false, message: '网络错误' };
+        }
+    }
+
+    function renderPersonalInfo(info) {
+        return '<div class="dashboard-card"><h2 class="dashboard-card-title">个人信息</h2><div class="personal-info-card"><div class="personal-info-avatar"><div class="avatar-circle">' + info.name.charAt(0) + '</div></div><div class="personal-info-details"><div class="info-item"><span class="info-label">姓名：</span><span class="info-value">' + info.name + '</span></div><div class="info-item"><span class="info-label">工号：</span><span class="info-value">' + info.employee_id + '</span></div><div class="info-item"><span class="info-label">用户名：</span><span class="info-value">' + info.username + '</span></div><div class="info-item"><span class="info-label">所属院系：</span><span class="info-value">' + info.department_name + '</span></div><div class="info-item"><span class="info-label">邮箱：</span><span class="info-value">' + info.email + '</span></div><div class="info-item"><span class="info-label">电话：</span><span class="info-value">' + (info.phone || '未填写') + '</span></div></div></div></div>';
+    }
+
+    function renderTaskStats(stats) {
+        return '<div class="dashboard-card"><h2 class="dashboard-card-title">任务总览</h2><div class="task-stats-grid"><div class="task-stat-total"><div class="stat-value">' + stats.total + '</div><div class="stat-label">任务总数</div></div><div class="task-stat-item"><div class="stat-value">' + stats.draft + '</div><div class="stat-label">未发布</div></div><div class="task-stat-item"><div class="stat-value">' + stats.active + '</div><div class="stat-label">已发布</div></div><div class="task-stat-item"><div class="stat-value">' + stats.expired + '</div><div class="stat-label">超时未关闭</div></div><div class="task-stat-item"><div class="stat-value">' + stats.closed + '</div><div class="stat-label">已关闭</div></div></div></div>';
+    }
+
+    function renderEmailStats(stats) {
+        return '<div class="dashboard-card"><h2 class="dashboard-card-title">邮件总览</h2><div class="email-stats-grid"><div class="stat-item"><div class="stat-value">' + stats.sent_total + '</div><div class="stat-label">发出邮件总数</div></div><div class="stat-item"><div class="stat-value">' + stats.received_total + '</div><div class="stat-label">收到邮件总数</div></div><div class="stat-item"><div class="stat-value">' + stats.aggregated + '</div><div class="stat-label">已汇总邮件数</div></div><div class="stat-item"><div class="stat-value">' + stats.not_aggregated + '</div><div class="stat-label">未汇总邮件数</div></div><div class="stat-item"><div class="stat-value">' + stats.aggregation_count + '</div><div class="stat-label">已生成汇总表数量</div></div></div></div>';
+    }
+
+    async function loadDashboard() {
+        addDebugInfo('loadDashboard 开始');
+        const container = document.getElementById('dashboardContainer');
+        try {
+            const result = await getDashboardData();
+            if (result.success) {
+                container.innerHTML = renderPersonalInfo(result.data.personal_info) + renderTaskStats(result.data.task_stats) + renderEmailStats(result.data.email_stats);
+                addDebugInfo('渲染完成');
+            } else {
+                container.innerHTML = '<div class="dashboard-error">' + result.message + '</div>';
+            }
+        } catch (error) {
+            addDebugInfo('错误: ' + error.message);
+            container.innerHTML = '<div class="dashboard-error">系统错误</div>';
+        }
+    }
+
+    (async function() {
+        addDebugInfo('初始化开始');
+        if (typeof CommonAPI === 'undefined') {
+            addDebugInfo('等待 CommonAPI...');
+            await new Promise(resolve => setTimeout(resolve, 300));
+            addDebugInfo('CommonAPI 状态: ' + (typeof CommonAPI !== 'undefined'));
+        }
+        await loadDashboard();
+        addDebugInfo('初始化完成');
+    })();
+})();
+</script>

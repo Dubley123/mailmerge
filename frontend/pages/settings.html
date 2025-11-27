@@ -1,0 +1,47 @@
+<!-- 系统设置 - 占位页面 -->
+<div class="page-container">
+    <div class="card" style="padding: 24px; max-width: 600px;">
+        <h3 style="font-size: 18px; margin-bottom: 20px; color: var(--text-primary);">
+            个人信息
+        </h3>
+        
+        <div style="margin-bottom: 16px;">
+            <div style="color: var(--text-secondary); font-size: 13px; margin-bottom: 4px;">姓名</div>
+            <div style="color: var(--text-primary);" id="settingUserName">-</div>
+        </div>
+        
+        <div style="margin-bottom: 16px;">
+            <div style="color: var(--text-secondary); font-size: 13px; margin-bottom: 4px;">所属院系</div>
+            <div style="color: var(--text-primary);" id="settingUserDept">-</div>
+        </div>
+        
+        <div style="margin-bottom: 16px;">
+            <div style="color: var(--text-secondary); font-size: 13px; margin-bottom: 4px;">邮箱</div>
+            <div style="color: var(--text-primary);" id="settingUserEmail">-</div>
+        </div>
+        
+        <div style="margin-bottom: 16px;">
+            <div style="color: var(--text-secondary); font-size: 13px; margin-bottom: 4px;">手机号</div>
+            <div style="color: var(--text-primary);" id="settingUserPhone">-</div>
+        </div>
+        
+        <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border-color);">
+            <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 12px;">
+                更多设置功能（如修改密码、邮箱配置等）将在后续开发中实现
+            </p>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 显示用户信息
+    (function() {
+        const user = Utils.getUser();
+        if (user) {
+            document.getElementById('settingUserName').textContent = user.name || '-';
+            document.getElementById('settingUserDept').textContent = user.department || '-';
+            document.getElementById('settingUserEmail').textContent = user.email || '未设置';
+            document.getElementById('settingUserPhone').textContent = user.phone || '未设置';
+        }
+    })();
+</script>

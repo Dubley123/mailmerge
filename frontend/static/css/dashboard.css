@@ -1,0 +1,224 @@
+/**
+ * Dashboard 页面样式
+ * 首页概览页面的专属样式
+ */
+
+/* 主容器 */
+.dashboard-container {
+    width: 92%;
+    max-width: 1400px;
+    margin: 24px auto;
+    padding: 0 12px;
+}
+
+/* 通用卡片样式 */
+.dashboard-card {
+    background: #FFFFFF;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+    padding: 24px;
+    margin-bottom: 20px;
+}
+
+.dashboard-card-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #F0F5FF;
+}
+
+/* 个人信息模块 */
+.personal-info-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+}
+
+.personal-info-avatar {
+    flex-shrink: 0;
+}
+
+.avatar-circle {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    border: 2px solid #E5E7EB;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #FFFFFF;
+    font-size: 28px;
+    font-weight: 600;
+}
+
+.personal-info-details {
+    flex: 1;
+}
+
+.info-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+    font-size: 14px;
+    line-height: 22px;
+}
+
+.info-label {
+    font-weight: 500;
+    color: #6B7280;
+    min-width: 80px;
+    margin-right: 12px;
+}
+
+.info-value {
+    color: #1F2937;
+    font-weight: 400;
+}
+
+/* 统计卡片网格 */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+}
+
+.stat-item {
+    background: #F9FAFB;
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+    transition: all 0.3s ease;
+    border: 1px solid transparent;
+}
+
+.stat-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(58, 122, 254, 0.1);
+    border-color: #3A7AFE;
+}
+
+.stat-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: #3A7AFE;
+    margin-bottom: 8px;
+}
+
+.stat-label {
+    font-size: 13px;
+    color: #6B7280;
+    font-weight: 500;
+}
+
+/* 任务统计特殊布局 */
+.task-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+}
+
+.task-stat-total {
+    grid-column: 1 / -1;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #FFFFFF;
+    padding: 20px;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.task-stat-total .stat-value {
+    color: #FFFFFF;
+    font-size: 32px;
+}
+
+.task-stat-total .stat-label {
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 15px;
+}
+
+.task-stat-item {
+    background: #F0F5FF;
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+    border: 1px solid #D0E0FF;
+    transition: all 0.3s ease;
+}
+
+.task-stat-item:hover {
+    background: #E0EDFF;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(58, 122, 254, 0.15);
+}
+
+.task-stat-item .stat-value {
+    font-size: 22px;
+}
+
+/* 邮件统计布局 */
+.email-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+}
+
+@media (max-width: 968px) {
+    .email-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 640px) {
+    .dashboard-container {
+        width: 100%;
+        margin: 16px auto;
+    }
+
+    .personal-info-card {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+
+    .info-item {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .info-label {
+        min-width: auto;
+        margin-right: 0;
+        margin-bottom: 4px;
+    }
+
+    .email-stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .task-stats-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* 加载状态 */
+.dashboard-loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 400px;
+    font-size: 16px;
+    color: #6B7280;
+}
+
+.dashboard-error {
+    background: #FEF2F2;
+    color: #DC2626;
+    padding: 16px;
+    border-radius: 8px;
+    text-align: center;
+    margin: 24px auto;
+    max-width: 600px;
+}

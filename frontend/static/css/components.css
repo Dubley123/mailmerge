@@ -1,0 +1,270 @@
+/*
+ * 组件样式
+ * 左侧导航栏、顶部横幅等可复用组件
+ */
+
+/* ==================== 左侧导航栏 ==================== */
+.sidebar {
+    width: 220px;
+    height: 100vh;
+    background: linear-gradient(180deg, #1E293B 0%, #0F172A 100%);
+    color: white;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+}
+
+/* 导航栏头部 */
+.sidebar-header {
+    padding: 24px 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.sidebar-logo-icon {
+    font-size: 28px;
+}
+
+.sidebar-logo-text {
+    font-size: 18px;
+    font-weight: 600;
+    color: white;
+}
+
+/* 导航菜单 */
+.sidebar-menu {
+    flex: 1;
+    padding: 20px 12px;
+    overflow-y: auto;
+}
+
+.sidebar-nav {
+    list-style: none;
+}
+
+.sidebar-nav-item {
+    margin-bottom: 4px;
+}
+
+.sidebar-nav-link {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    color: rgba(255, 255, 255, 0.8);
+    text-decoration: none;
+    border-radius: var(--radius-sm);
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.sidebar-nav-link:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.sidebar-nav-link.active {
+    background: var(--primary-color);
+    color: white;
+}
+
+.sidebar-nav-icon {
+    font-size: 18px;
+    margin-right: 12px;
+}
+
+.sidebar-nav-text {
+    font-size: 14px;
+    font-weight: 500;
+}
+
+/* 导航栏底部 */
+.sidebar-footer {
+    padding: 16px 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-user {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.sidebar-user-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+}
+
+.sidebar-user-info {
+    flex: 1;
+}
+
+.sidebar-user-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: white;
+    display: block;
+    margin-bottom: 2px;
+}
+
+.sidebar-user-role {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+/* ==================== 顶部横幅 ==================== */
+.header {
+    height: 60px;
+    background: white;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    box-shadow: var(--shadow-sm);
+}
+
+/* 左侧 - 页面标题和操作按钮 */
+.header-left {
+    display: flex;
+    align-items: center;
+    flex: 1;
+}
+
+.header-title-text {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+/* 右侧 - 操作区 */
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+/* 通知按钮 */
+.header-notification {
+    position: relative;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.header-notification:hover {
+    background: var(--bg-color);
+}
+
+.header-notification-badge {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    width: 18px;
+    height: 18px;
+    background: var(--error-color);
+    border-radius: 50%;
+    font-size: 10px;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid white;
+}
+
+/* 用户信息 */
+.header-user {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 12px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.header-user:hover {
+    background: var(--bg-color);
+}
+
+.header-user-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.header-user-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+/* 登出按钮 */
+.header-logout {
+    padding: 8px 16px;
+    background: white;
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.header-logout:hover {
+    background: var(--bg-color);
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+/* ==================== 响应式设计 ==================== */
+@media (max-width: 768px) {
+    .sidebar {
+        width: 180px;
+    }
+    
+    .sidebar-logo-text {
+        font-size: 16px;
+    }
+    
+    .sidebar-nav-text {
+        font-size: 13px;
+    }
+    
+    .header {
+        padding: 0 16px;
+    }
+    
+    .header-title {
+        font-size: 16px;
+    }
+    
+    .header-user-name {
+        display: none;
+    }
+}

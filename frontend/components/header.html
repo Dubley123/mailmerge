@@ -1,0 +1,39 @@
+<!-- 顶部横幅组件 -->
+<header class="header">
+    <!-- 左侧 - 页面标题和操作按钮 -->
+    <div class="header-left">
+        <h1 class="header-title-text" id="headerPageTitle">邮件汇总系统</h1>
+    </div>
+
+    <!-- 右侧 - 用户信息和登出按钮 -->
+    <div class="header-right">
+        <!-- 用户信息 -->
+        <div class="header-user">
+            <div class="header-user-avatar">👤</div>
+            <span class="header-user-name" id="headerUserName">用户</span>
+        </div>
+
+        <!-- 登出按钮 -->
+        <button class="header-logout" id="logoutBtn">
+            登出
+        </button>
+    </div>
+</header>
+
+<script>
+// 更新顶部用户信息 - 仅执行一次
+if (!window.headerInitialized) {
+    window.headerInitialized = true;
+    
+    // 登出按钮事件
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', async () => {
+            if (window.confirm('确定要退出登录吗？')) {
+                await AuthAPI.logout();
+            }
+        });
+    }
+}
+</script>
+

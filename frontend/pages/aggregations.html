@@ -1,0 +1,461 @@
+<!-- 已汇总表单页面 -->
+<link rel="stylesheet" href="/frontend/static/css/aggregations.css">
+
+<div class="aggregations-container">
+    <!-- 顶部工具栏 -->
+    <div class="toolbar">
+        <div class="toolbar-left">
+            <h1 class="page-title">已汇总表单</h1>
+        </div>
+        <div class="toolbar-right">
+            <!-- 筛选控件 -->
+            <div class="filter-group">
+                <select id="taskFilter" class="filter-select">
+                    <option value="">全部任务</option>
+                </select>
+                <input type="date" id="startDateFilter" class="filter-input" placeholder="起始时间">
+                <input type="date" id="endDateFilter" class="filter-input" placeholder="终止时间">
+                <button id="filterBtn" class="btn-secondary">筛选</button>
+                <button id="resetFilterBtn" class="btn-secondary">重置</button>
+            </div>
+            <button id="refreshBtn" class="btn-primary">
+                <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                    <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
+                    <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
+                </svg>
+                刷新
+            </button>
+        </div>
+    </div>
+
+    <!-- 加载指示器 -->
+    <div id="loadingIndicator" class="loading-indicator" style="display: none;">
+        <div class="loading-spinner"></div>
+        <div>加载中...</div>
+    </div>
+
+    <!-- 错误提示 -->
+    <div id="errorMessage" class="error-message" style="display: none;"></div>
+
+    <!-- 汇总表表格 -->
+    <div class="table-card">
+        <table class="aggregations-table">
+            <thead>
+                <tr>
+                    <th class="col-name sortable" data-sort="name">
+                        汇总表名称
+                        <span class="sort-icon">⇅</span>
+                    </th>
+                    <th class="col-task sortable" data-sort="task_name">
+                        对应任务
+                        <span class="sort-icon">⇅</span>
+                    </th>
+                    <th class="col-time sortable active" data-sort="generated_at">
+                        汇总时间
+                        <span class="sort-icon">▼</span>
+                    </th>
+                    <th class="col-count">记录数量</th>
+                    <th class="col-actions">操作</th>
+                </tr>
+            </thead>
+            <tbody id="aggregationsTableBody">
+                <!-- 数据行将由 JS 动态生成 -->
+            </tbody>
+        </table>
+
+        <!-- 空状态 -->
+        <div id="emptyState" class="empty-state" style="display: none;">
+            <div class="empty-state-icon">📦</div>
+            <div class="empty-state-text">暂无汇总表</div>
+        </div>
+    </div>
+
+    <!-- 分页控件 -->
+    <div class="pagination" id="pagination" style="display: none;">
+        <button id="prevPageBtn" class="pagination-btn" disabled>上一页</button>
+        <span id="pageInfo" class="page-info">第 1 页 / 共 1 页</span>
+        <button id="nextPageBtn" class="pagination-btn" disabled>下一页</button>
+        <div class="page-size-selector">
+            每页显示
+            <select id="pageSizeSelect">
+                <option value="10">10</option>
+                <option value="20" selected>20</option>
+                <option value="50">50</option>
+            </select>
+            条
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    console.log('[Aggregations] 页面脚本开始执行');
+
+    // ==================== 状态管理 ====================
+    const state = {
+        currentPage: 1,
+        pageSize: 20,
+        total: 0,
+        sortBy: 'generated_at',
+        sortOrder: 'desc',
+        filters: {
+            taskId: null,
+            startDate: null,
+            endDate: null
+        },
+        tasks: [] // 任务列表（用于筛选下拉框）
+    };
+
+    // ==================== DOM 元素 ====================
+    const elements = {
+        loadingIndicator: document.getElementById('loadingIndicator'),
+        errorMessage: document.getElementById('errorMessage'),
+        tableBody: document.getElementById('aggregationsTableBody'),
+        emptyState: document.getElementById('emptyState'),
+        pagination: document.getElementById('pagination'),
+        pageInfo: document.getElementById('pageInfo'),
+        prevPageBtn: document.getElementById('prevPageBtn'),
+        nextPageBtn: document.getElementById('nextPageBtn'),
+        pageSizeSelect: document.getElementById('pageSizeSelect'),
+        refreshBtn: document.getElementById('refreshBtn'),
+        taskFilter: document.getElementById('taskFilter'),
+        startDateFilter: document.getElementById('startDateFilter'),
+        endDateFilter: document.getElementById('endDateFilter'),
+        filterBtn: document.getElementById('filterBtn'),
+        resetFilterBtn: document.getElementById('resetFilterBtn')
+    };
+
+    // ==================== 工具函数 ====================
+    function showLoading() {
+        elements.loadingIndicator.style.display = 'flex';
+        elements.errorMessage.style.display = 'none';
+    }
+
+    function hideLoading() {
+        elements.loadingIndicator.style.display = 'none';
+    }
+
+    function showError(message) {
+        elements.errorMessage.textContent = message;
+        elements.errorMessage.style.display = 'block';
+        hideLoading();
+    }
+
+    function formatDateTime(dateStr) {
+        const date = new Date(dateStr);
+        return date.toLocaleString('zh-CN', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+
+    // ==================== API 调用 ====================
+    async function fetchAggregations() {
+        showLoading();
+        try {
+            const params = new URLSearchParams({
+                page: state.currentPage,
+                page_size: state.pageSize,
+                sort_by: state.sortBy,
+                sort_order: state.sortOrder
+            });
+
+            if (state.filters.taskId) {
+                params.append('task_id', state.filters.taskId);
+            }
+            if (state.filters.startDate) {
+                params.append('start_date', state.filters.startDate);
+            }
+            if (state.filters.endDate) {
+                params.append('end_date', state.filters.endDate);
+            }
+
+            const result = await CommonAPI.get(`/api/aggregations/list?${params.toString()}`);
+            hideLoading();
+
+            if (result.success) {
+                // CommonAPI包装后: result.data = {data: [...], total: 10}
+                state.total = result.data.total;
+                renderTable(result.data.data);
+                updatePagination();
+            } else {
+                showError(result.error || '获取汇总表列表失败');
+            }
+        } catch (error) {
+            console.error('[Aggregations] 获取列表失败:', error);
+            showError('网络错误，请稍后重试');
+        }
+    }
+
+    async function fetchTasks() {
+        try {
+            const result = await CommonAPI.get('/api/tasks/list');
+            if (result.success) {
+                state.tasks = result.data;
+                renderTaskFilter();
+            }
+        } catch (error) {
+            console.error('[Aggregations] 获取任务列表失败:', error);
+        }
+    }
+
+    async function downloadAggregation(aggregationId, filename) {
+        try {
+            // 使用 fetch 带认证信息下载文件
+            const token = localStorage.getItem('mailmerge_token');
+            if (!token) {
+                alert('请先登录');
+                return;
+            }
+
+            const response = await fetch(`/api/aggregations/${aggregationId}/download`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                if (response.status === 401) {
+                    alert('认证失败，请重新登录');
+                    return;
+                }
+                throw new Error('下载失败');
+            }
+
+            // 获取文件名（从响应头）
+            const contentDisposition = response.headers.get('content-disposition');
+            let downloadFilename = 'aggregation.xlsx';
+            
+            if (contentDisposition) {
+                // 支持 RFC 5987 编码的文件名 (filename*=UTF-8''...)
+                const filenameStarMatch = /filename\*=UTF-8''(.+)/.exec(contentDisposition);
+                if (filenameStarMatch) {
+                    downloadFilename = decodeURIComponent(filenameStarMatch[1]);
+                } else {
+                    // 传统格式 (filename="...")
+                    const filenameMatch = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(contentDisposition);
+                    if (filenameMatch && filenameMatch[1]) {
+                        downloadFilename = filenameMatch[1].replace(/['"]/g, '');
+                    }
+                }
+            }
+
+            // 创建 Blob 并下载
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = downloadFilename;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        } catch (error) {
+            console.error('[Aggregations] 下载失败:', error);
+            alert('下载失败，请稍后重试');
+        }
+    }
+
+    // ==================== 渲染函数 ====================
+    function renderTaskFilter() {
+        const options = state.tasks.map(task => 
+            `<option value="${task.id}">${task.name}</option>`
+        ).join('');
+        elements.taskFilter.innerHTML = `<option value="">全部任务</option>${options}`;
+    }
+
+    function renderTable(aggregations) {
+        if (aggregations.length === 0) {
+            elements.tableBody.innerHTML = '';
+            elements.emptyState.style.display = 'flex';
+            elements.pagination.style.display = 'none';
+            return;
+        }
+
+        elements.emptyState.style.display = 'none';
+        
+        const rows = aggregations.map(agg => `
+            <tr>
+                <td class="col-name">${escapeHtml(agg.name)}</td>
+                <td class="col-task">${escapeHtml(agg.task_name)}</td>
+                <td class="col-time">${formatDateTime(agg.generated_at)}</td>
+                <td class="col-count">${agg.record_count || '-'}</td>
+                <td class="col-actions">
+                    <button class="btn-download" onclick="window.aggregationsPage.handleDownload(${agg.id}, '${escapeHtml(agg.name)}')">
+                        <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+                            <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
+                        </svg>
+                        下载
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+
+        elements.tableBody.innerHTML = rows;
+    }
+
+    function updatePagination() {
+        const totalPages = Math.ceil(state.total / state.pageSize);
+        
+        if (totalPages <= 1) {
+            elements.pagination.style.display = 'none';
+            return;
+        }
+
+        elements.pagination.style.display = 'flex';
+        elements.pageInfo.textContent = `第 ${state.currentPage} 页 / 共 ${totalPages} 页 (共 ${state.total} 条)`;
+        elements.prevPageBtn.disabled = state.currentPage === 1;
+        elements.nextPageBtn.disabled = state.currentPage === totalPages;
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // ==================== 事件处理 ====================
+    function handleDownload(aggregationId, filename) {
+        downloadAggregation(aggregationId, filename);
+    }
+
+    function handleSort(sortBy) {
+        if (state.sortBy === sortBy) {
+            state.sortOrder = state.sortOrder === 'asc' ? 'desc' : 'asc';
+        } else {
+            state.sortBy = sortBy;
+            state.sortOrder = 'desc';
+        }
+        state.currentPage = 1;
+        updateSortUI();
+        fetchAggregations();
+    }
+
+    function updateSortUI() {
+        document.querySelectorAll('.sortable').forEach(th => {
+            th.classList.remove('active');
+            th.querySelector('.sort-icon').textContent = '⇅';
+        });
+
+        const activeTh = document.querySelector(`[data-sort="${state.sortBy}"]`);
+        if (activeTh) {
+            activeTh.classList.add('active');
+            activeTh.querySelector('.sort-icon').textContent = state.sortOrder === 'asc' ? '▲' : '▼';
+        }
+    }
+
+    function handleFilter() {
+        state.filters.taskId = elements.taskFilter.value || null;
+        state.filters.startDate = elements.startDateFilter.value || null;
+        state.filters.endDate = elements.endDateFilter.value || null;
+        state.currentPage = 1;
+        fetchAggregations();
+    }
+
+    function handleResetFilter() {
+        elements.taskFilter.value = '';
+        elements.startDateFilter.value = '';
+        elements.endDateFilter.value = '';
+        state.filters = {
+            taskId: null,
+            startDate: null,
+            endDate: null
+        };
+        state.currentPage = 1;
+        fetchAggregations();
+    }
+
+    // ==================== 事件绑定 ====================
+    elements.refreshBtn.addEventListener('click', () => fetchAggregations());
+    elements.filterBtn.addEventListener('click', handleFilter);
+    elements.resetFilterBtn.addEventListener('click', handleResetFilter);
+    elements.prevPageBtn.addEventListener('click', () => {
+        if (state.currentPage > 1) {
+            state.currentPage--;
+            fetchAggregations();
+        }
+    });
+    elements.nextPageBtn.addEventListener('click', () => {
+        const totalPages = Math.ceil(state.total / state.pageSize);
+        if (state.currentPage < totalPages) {
+            state.currentPage++;
+            fetchAggregations();
+        }
+    });
+    elements.pageSizeSelect.addEventListener('change', (e) => {
+        state.pageSize = parseInt(e.target.value);
+        state.currentPage = 1;
+        fetchAggregations();
+    });
+
+    // 排序点击事件
+    document.querySelectorAll('.sortable').forEach(th => {
+        th.addEventListener('click', () => {
+            const sortBy = th.dataset.sort;
+            handleSort(sortBy);
+        });
+    });
+
+    // 设置date input的中文placeholder
+    setupDateInputs();
+
+    // ==================== Date Input 设置 ====================
+    function setupDateInputs() {
+        const startDateInput = elements.startDateFilter;
+        const endDateInput = elements.endDateFilter;
+        
+        // 设置中文placeholder
+        if (startDateInput && !startDateInput.value) {
+            startDateInput.setAttribute('data-placeholder', '起始时间（年-月-日）');
+        }
+        if (endDateInput && !endDateInput.value) {
+            endDateInput.setAttribute('data-placeholder', '终止时间（年-月-日）');
+        }
+        
+        // 监听变化以更新显示格式
+        [startDateInput, endDateInput].forEach(input => {
+            if (input) {
+                input.addEventListener('change', function() {
+                    if (this.value) {
+                        // 将YYYY-MM-DD转换为YYYY年MM月DD日显示
+                        const date = new Date(this.value);
+                        const year = date.getFullYear();
+                        const month = String(date.getMonth() + 1).padStart(2, '0');
+                        const day = String(date.getDate()).padStart(2, '0');
+                        this.setAttribute('data-value', `${year}年${month}月${day}日`);
+                    }
+                });
+            }
+        });
+    }
+
+    // ==================== 导出全局函数 ====================
+    window.aggregationsPage = {
+        handleDownload: handleDownload
+    };
+
+    // ==================== 初始化 ====================
+    (async function init() {
+        console.log('[Aggregations] 初始化开始');
+        
+        // 等待 CommonAPI 加载
+        if (typeof CommonAPI === 'undefined') {
+            await new Promise(resolve => setTimeout(resolve, 300));
+        }
+
+        // 加载任务列表（用于筛选）
+        await fetchTasks();
+
+        // 加载汇总表列表
+        await fetchAggregations();
+
+        console.log('[Aggregations] 初始化完成');
+    })();
+})();
+</script>

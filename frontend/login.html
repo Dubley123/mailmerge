@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录 - 邮件汇总系统</title>
+    <link rel="stylesheet" href="/frontend/static/css/base.css">
+    <link rel="stylesheet" href="/frontend/static/css/auth.css">
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-card">
+            <!-- 卡片头部 -->
+            <div class="auth-header">
+                <div class="auth-logo">📧</div>
+                <h1 class="auth-title">邮件汇总系统</h1>
+                <p class="auth-subtitle">欢迎回来，请登录您的账号</p>
+            </div>
+
+            <!-- 卡片主体 -->
+            <div class="auth-body">
+                <form id="loginForm">
+                    <!-- 账号 -->
+                    <div class="form-group">
+                        <label class="form-label form-label-required">账号</label>
+                        <input 
+                            type="text" 
+                            class="auth-input" 
+                            id="account" 
+                            name="account"
+                            placeholder="请输入账号、用户名或邮箱"
+                            required
+                            autocomplete="username"
+                        >
+                        <div class="form-error" id="accountError"></div>
+                    </div>
+
+                    <!-- 密码 -->
+                    <div class="form-group">
+                        <label class="form-label form-label-required">密码</label>
+                        <input 
+                            type="password" 
+                            class="auth-input" 
+                            id="password" 
+                            name="password"
+                            placeholder="请输入密码"
+                            required
+                            autocomplete="current-password"
+                        >
+                        <div class="form-error" id="passwordError"></div>
+                    </div>
+
+                    <!-- 提交按钮 -->
+                    <button type="submit" class="auth-submit" id="loginBtn">
+                        登录
+                    </button>
+                </form>
+
+                <!-- 底部链接 -->
+                <div class="auth-footer">
+                    还没有账号？
+                    <a href="/frontend/register.html" class="auth-link">立即注册</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 引入 JS 文件 -->
+    <script src="/frontend/static/js/utils.js"></script>
+    <script src="/frontend/static/js/api/common.js"></script>
+    <script src="/frontend/static/js/api/auth.js"></script>
+    
+    <script>
+        // 检查是否已登录
+        if (Utils.isAuthenticated()) {
+            window.location.href = '/frontend/index.html';
+        }
+
+        // 表单提交处理
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            // 清除之前的错误提示
+            document.getElementById('accountError').textContent = '';
+            document.getElementById('passwordError').textContent = '';
+
+            // 获取表单数据
+            const account = document.getElementById('account').value.trim();
+            const password = document.getElementById('password').value;
+
+            // 前端验证
+            if (!account) {
+                document.getElementById('accountError').textContent = '请输入账号';
+                return;
+            }
+
+            if (!password) {
+                document.getElementById('passwordError').textContent = '请输入密码';
+                return;
+            }
+
+            // 禁用提交按钮
+            const loginBtn = document.getElementById('loginBtn');
+            loginBtn.disabled = true;
+            loginBtn.textContent = '登录中...';
+
+            try {
+                // 调用登录 API
+                const result = await AuthAPI.login(account, password);
+
+                if (result.success) {
+                    // 登录成功，直接跳转，不显示提示
+                    window.location.href = '/frontend/index.html';
+                } else {
+                    // 显示友好的错误信息
+                    const errorMsg = result.message || '账号或密码错误，请重试';
+                    alert(errorMsg);
+                    loginBtn.disabled = false;
+                    loginBtn.textContent = '登录';
+                }
+            } catch (error) {
+                console.error('登录失败:', error);
+                alert('网络连接失败，请检查网络后重试');
+                loginBtn.disabled = false;
+                loginBtn.textContent = '登录';
+            }
+        });
+
+        // Enter 键提交
+        document.getElementById('password').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                document.getElementById('loginForm').dispatchEvent(new Event('submit'));
+            }
+        });
+    </script>
+</body>
+</html>

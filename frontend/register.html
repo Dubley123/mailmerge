@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>注册 - 邮件汇总系统</title>
+    <link rel="stylesheet" href="/frontend/static/css/base.css">
+    <link rel="stylesheet" href="/frontend/static/css/auth.css">
+    <style>
+        /* 注册卡片扩大宽度 */
+        .auth-card {
+            max-width: 700px;
+        }
+        
+        /* 两列布局 */
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        
+        /* 单列布局（用于占满整行的字段） */
+        .form-row-full {
+            display: block;
+        }
+        
+        @media (max-width: 640px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-card">
+            <!-- 卡片头部 -->
+            <div class="auth-header">
+                <div class="auth-logo">📧</div>
+                <h1 class="auth-title">用户注册</h1>
+                <p class="auth-subtitle">创建您的账号开始使用系统</p>
+            </div>
+
+            <!-- 卡片主体 -->
+            <div class="auth-body">
+                <form id="registerForm">
+                    <!-- 第一行：工号 + 姓名 -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label form-label-required">工号</label>
+                            <input 
+                                type="number" 
+                                class="auth-input" 
+                                id="employee_id" 
+                                name="employee_id"
+                                placeholder="请输入教职工号"
+                                required
+                            >
+                            <div class="form-error" id="employeeIdError"></div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label form-label-required">姓名</label>
+                            <input 
+                                type="text" 
+                                class="auth-input" 
+                                id="name" 
+                                name="name"
+                                placeholder="请输入真实姓名"
+                                required
+                            >
+                            <div class="form-error" id="nameError"></div>
+                        </div>
+                    </div>
+
+                    <!-- 第二行：院系 + 用户名 -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label form-label-required">所属院系</label>
+                            <select 
+                                class="auth-select" 
+                                id="department_id" 
+                                name="department_id"
+                                required
+                            >
+                                <option value="">请选择院系</option>
+                            </select>
+                            <div class="form-error" id="departmentError"></div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label form-label-required">用户名</label>
+                            <input 
+                                type="text" 
+                                class="auth-input" 
+                                id="username" 
+                                name="username"
+                                placeholder="4-20位字母、数字或下划线"
+                                required
+                                autocomplete="username"
+                            >
+                            <div class="form-error" id="usernameError"></div>
+                        </div>
+                    </div>
+
+                    <!-- 第三行：邮箱 + 手机号 -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label form-label-required">邮箱</label>
+                            <input 
+                                type="email" 
+                                class="auth-input" 
+                                id="email" 
+                                name="email"
+                                placeholder="请输入邮箱地址"
+                                required
+                                autocomplete="email"
+                            >
+                            <div class="form-error" id="emailError"></div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">手机号</label>
+                            <input 
+                                type="tel" 
+                                class="auth-input" 
+                                id="phone" 
+                                name="phone"
+                                placeholder="请输入手机号（选填）"
+                                autocomplete="tel"
+                            >
+                            <div class="form-error" id="phoneError"></div>
+                        </div>
+                    </div>
+
+                    <!-- 第四行：密码 + 确认密码 -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label form-label-required">密码</label>
+                            <input 
+                                type="password" 
+                                class="auth-input" 
+                                id="password" 
+                                name="password"
+                                placeholder="至少6位字符"
+                                required
+                                autocomplete="new-password"
+                            >
+                            <div class="form-error" id="passwordError"></div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label form-label-required">确认密码</label>
+                            <input 
+                                type="password" 
+                                class="auth-input" 
+                                id="confirmPassword" 
+                                name="confirmPassword"
+                                placeholder="请再次输入密码"
+                                required
+                                autocomplete="new-password"
+                            >
+                            <div class="form-error" id="confirmPasswordError"></div>
+                        </div>
+                    </div>
+
+                    <!-- 提交按钮 -->
+                    <button type="submit" class="auth-submit" id="registerBtn">
+                        注册
+                    </button>
+                </form>
+
+                <!-- 底部链接 -->
+                <div class="auth-footer">
+                    已有账号？
+                    <a href="/frontend/login.html" class="auth-link">立即登录</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 引入 JS 文件 -->
+    <script src="/frontend/static/js/utils.js"></script>
+    <script src="/frontend/static/js/api/common.js"></script>
+    <script src="/frontend/static/js/api/auth.js"></script>
+    
+    <script>
+        // 检查是否已登录
+        if (Utils.isAuthenticated()) {
+            window.location.href = '/frontend/index.html';
+        }
+
+        // 加载院系列表
+        async function loadDepartments() {
+            const result = await AuthAPI.getDepartments();
+            
+            if (result.success) {
+                const select = document.getElementById('department_id');
+                result.departments.forEach(dept => {
+                    const option = document.createElement('option');
+                    option.value = dept.id;
+                    option.textContent = dept.name;
+                    select.appendChild(option);
+                });
+            } else {
+                console.error('加载院系列表失败:', result.message);
+            }
+        }
+
+        // 页面加载时获取院系列表
+        loadDepartments();
+
+        // 表单验证
+        function validateForm() {
+            let isValid = true;
+
+            // 清除所有错误提示
+            document.querySelectorAll('.form-error').forEach(el => el.textContent = '');
+
+            // 验证工号
+            const employeeId = document.getElementById('employee_id').value.trim();
+            if (!employeeId) {
+                document.getElementById('employeeIdError').textContent = '请输入工号';
+                isValid = false;
+            } else if (parseInt(employeeId) <= 0) {
+                document.getElementById('employeeIdError').textContent = '工号必须是正整数';
+                isValid = false;
+            }
+
+            // 验证姓名
+            const name = document.getElementById('name').value.trim();
+            if (!name) {
+                document.getElementById('nameError').textContent = '请输入姓名';
+                isValid = false;
+            }
+
+            // 验证院系
+            const departmentId = document.getElementById('department_id').value;
+            if (!departmentId) {
+                document.getElementById('departmentError').textContent = '请选择院系';
+                isValid = false;
+            }
+
+            // 验证用户名
+            const username = document.getElementById('username').value.trim();
+            if (!username) {
+                document.getElementById('usernameError').textContent = '请输入用户名';
+                isValid = false;
+            } else if (!/^[a-zA-Z0-9_]{4,20}$/.test(username)) {
+                document.getElementById('usernameError').textContent = '用户名必须是4-20位字母、数字或下划线';
+                isValid = false;
+            }
+
+            // 验证邮箱（必填）
+            const email = document.getElementById('email').value.trim();
+            if (!email) {
+                document.getElementById('emailError').textContent = '请输入邮箱';
+                isValid = false;
+            } else if (!Utils.validateEmail(email)) {
+                document.getElementById('emailError').textContent = '邮箱格式不正确';
+                isValid = false;
+            }
+
+            // 验证手机号（选填）
+            const phone = document.getElementById('phone').value.trim();
+            if (phone && !Utils.validatePhone(phone)) {
+                document.getElementById('phoneError').textContent = '手机号格式不正确';
+                isValid = false;
+            }
+
+            // 验证密码
+            const password = document.getElementById('password').value;
+            if (!password) {
+                document.getElementById('passwordError').textContent = '请输入密码';
+                isValid = false;
+            } else if (password.length < 6) {
+                document.getElementById('passwordError').textContent = '密码至少6位字符';
+                isValid = false;
+            }
+
+            // 验证确认密码
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            if (!confirmPassword) {
+                document.getElementById('confirmPasswordError').textContent = '请确认密码';
+                isValid = false;
+            } else if (password !== confirmPassword) {
+                document.getElementById('confirmPasswordError').textContent = '两次密码输入不一致';
+                isValid = false;
+            }
+
+            return isValid;
+        }
+
+        // 表单提交处理
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            // 验证表单
+            if (!validateForm()) {
+                return;
+            }
+
+            // 获取表单数据
+            const formData = {
+                employee_id: parseInt(document.getElementById('employee_id').value.trim()),
+                name: document.getElementById('name').value.trim(),
+                department_id: parseInt(document.getElementById('department_id').value),
+                username: document.getElementById('username').value.trim(),
+                email: document.getElementById('email').value.trim(),
+                phone: document.getElementById('phone').value.trim() || null,
+                password: document.getElementById('password').value,
+            };
+
+            // 禁用提交按钮
+            const registerBtn = document.getElementById('registerBtn');
+            registerBtn.disabled = true;
+            registerBtn.textContent = '注册中...';
+
+            try {
+                // 调用注册 API
+                const result = await AuthAPI.register(formData);
+
+                if (result.success) {
+                    alert('注册成功！即将跳转到登录页面');
+                    // 跳转到登录页
+                    setTimeout(() => {
+                        window.location.href = '/frontend/login.html';
+                    }, 1000);
+                } else {
+                    // 显示友好的错误信息
+                    const errorMsg = result.message || '注册失败，请检查输入信息';
+                    alert(errorMsg);
+                    registerBtn.disabled = false;
+                    registerBtn.textContent = '注册';
+                }
+            } catch (error) {
+                console.error('注册失败:', error);
+                alert('网络连接失败，请检查网络后重试');
+                registerBtn.disabled = false;
+                registerBtn.textContent = '注册';
+            }
+        });
+    </script>
+</body>
+</html>

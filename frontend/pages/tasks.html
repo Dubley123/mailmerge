@@ -1,0 +1,994 @@
+<!-- 任务总览页面 -->
+<link rel="stylesheet" href="/frontend/static/css/tasks-new.css">
+
+<!-- 引入必要的JS文件 -->
+<script src="/frontend/static/js/utils.js?v=4"></script>
+<script src="/frontend/static/js/api/common.js?v=4"></script>
+<script src="/frontend/static/js/api/tasks.js?v=4"></script>
+
+<div class="tasks-container">
+    <!-- 顶部工具栏 -->
+    <div class="toolbar">
+        <div class="toolbar-left">
+            <h1 class="page-title">任务总览</h1>
+        </div>
+        <div class="toolbar-right">
+            <!-- 筛选控件 -->
+            <div class="filter-group" style="display: inline-flex; gap: 8px; margin-right: 16px;">
+                <select id="statusFilter" class="filter-select">
+                    <option value="">全部状态</option>
+                    <option value="DRAFT">未发布</option>
+                    <option value="ACTIVE">已发布</option>
+                    <option value="EXPIRED">超时未关闭</option>
+                    <option value="CLOSED">已关闭</option>
+                </select>
+                <input type="date" id="startDateFilter" class="filter-input" placeholder="起始时间">
+                <input type="date" id="endDateFilter" class="filter-input" placeholder="终止时间">
+                <button id="filterBtn" class="btn-secondary">筛选</button>
+                <button id="resetFilterBtn" class="btn-secondary">重置</button>
+            </div>
+            <button class="btn-primary" onclick="TasksPage.openCreateModal()">
+                <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/>
+                </svg>
+                新建任务
+            </button>
+        </div>
+    </div>
+
+    <!-- 任务列表表格 -->
+    <div class="table-card">
+        <table class="tasks-table">
+            <thead>
+                <tr>
+                    <th class="col-name sortable" data-sort="name">
+                        任务名称
+                        <span class="sort-icon">⇅</span>
+                    </th>
+                    <th class="col-time sortable" data-sort="started_time">
+                        起始时间
+                        <span class="sort-icon">⇅</span>
+                    </th>
+                    <th class="col-time sortable active" data-sort="deadline">
+                        终止时间
+                        <span class="sort-icon">▼</span>
+                    </th>
+                    <th class="col-template">表格模板</th>
+                    <th class="col-count">已回复/总数</th>
+                    <th class="col-status sortable" data-sort="status">
+                        状态
+                        <span class="sort-icon">⇅</span>
+                    </th>
+                    <th class="col-actions">操作</th>
+                </tr>
+            </thead>
+            <tbody id="tasksTableBody">
+                <tr>
+                    <td colspan="7" class="loading-state">加载中...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 任务描述弹窗 -->
+<div id="taskDescModal" class="modal-overlay" style="display: none;">
+    <div class="modal modal-detail">
+        <div class="modal-header">
+            <h2 class="modal-title" id="taskDescTitle">任务描述</h2>
+            <button class="modal-close" onclick="TasksPage.closeDescModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p id="taskDescContent" style="line-height: 1.8; color: #4B5563;"></p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="TasksPage.closeDescModal()">关闭</button>
+        </div>
+    </div>
+</div>
+
+<!-- 任务详情弹窗 -->
+<div id="taskDetailModal" class="modal-overlay" style="display: none;">
+    <div class="modal modal-detail">
+        <div class="modal-header">
+            <h2 class="modal-title">任务回复详情</h2>
+            <button class="modal-close" onclick="TasksPage.closeDetailModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <table class="detail-table">
+                <thead>
+                    <tr>
+                        <th>教师姓名</th>
+                        <th>工号</th>
+                        <th>邮箱</th>
+                        <th>回复状态</th>
+                    </tr>
+                </thead>
+                <tbody id="taskDetailTableBody"></tbody>
+            </table>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="TasksPage.closeDetailModal()">关闭</button>
+        </div>
+    </div>
+</div>
+
+<!-- 新建/编辑任务弹窗 -->
+<div id="taskFormModal" class="modal-overlay" style="display: none;">
+    <div class="modal modal-create">
+        <div class="modal-header">
+            <h2 class="modal-title" id="taskFormTitle">新建任务</h2>
+            <button class="modal-close" onclick="TasksPage.closeFormModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <!-- 步骤进度条 -->
+            <div class="step-progress" id="stepProgress">
+                <div class="step-item active" data-step="1">
+                    <div class="step-circle">1</div>
+                    <div class="step-label">基础信息</div>
+                </div>
+                <div class="step-item" data-step="2">
+                    <div class="step-circle">2</div>
+                    <div class="step-label">模板与邮件</div>
+                </div>
+                <div class="step-item" data-step="3">
+                    <div class="step-circle">3</div>
+                    <div class="step-label">教师列表</div>
+                </div>
+            </div>
+
+            <form id="taskForm">
+                <!-- 步骤1: 基础信息 -->
+                <div class="form-section active" id="step1">
+                    <div class="form-group">
+                        <label class="form-label form-label-required">任务名称</label>
+                        <input type="text" class="form-input" id="taskName" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">任务描述</label>
+                        <textarea class="form-textarea" id="taskDesc" placeholder="可选，用于说明本次任务的目的和要求"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label form-label-required">截止时间</label>
+                        <input type="datetime-local" class="form-input" id="taskDeadline" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label form-label-required">发布时间</label>
+                        <div class="form-radio-group">
+                            <label class="form-radio">
+                                <input type="radio" name="publishType" value="now" checked>
+                                <span>立即发布</span>
+                            </label>
+                            <label class="form-radio">
+                                <input type="radio" name="publishType" value="scheduled">
+                                <span>自定义时间</span>
+                            </label>
+                        </div>
+                        <input type="datetime-local" class="form-input" id="taskStartTime" style="display: none; margin-top: 8px;">
+                    </div>
+                </div>
+
+                <!-- 步骤2: 模板与邮件 -->
+                <div class="form-section" id="step2">
+                    <div class="form-group">
+                        <label class="form-label form-label-required">表格模板</label>
+                        <select class="form-select" id="taskTemplate" required>
+                            <option value="">请选择模板</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label form-label-required">邮件标题</label>
+                        <input type="text" class="form-input" id="mailSubject" placeholder="例如：请填写2024年度科研数据" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label form-label-required">邮件正文</label>
+                        <textarea class="form-textarea" id="mailContent" placeholder="邮件正文内容，可使用变量：{教师姓名}、{任务名称}、{截止时间}" required style="min-height: 150px;"></textarea>
+                    </div>
+                </div>
+
+                <!-- 步骤3: 教师列表 -->
+                <div class="form-section" id="step3">
+                    <!-- 搜索框和全选按钮在同一行 -->
+                    <div class="teacher-search-bar">
+                        <input type="text" class="teacher-search-input" id="teacherSearch" placeholder="搜索教师姓名、工号或邮箱...">
+                        <div class="toggle-wrapper">
+                            <span class="toggle-label">全选</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="selectAllTeachers">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                    <!-- 选中数量显示 -->
+                    <div class="selected-count-display">
+                        <span id="selectedCount">已选择: 0</span>
+                    </div>
+                    <!-- 教师列表表格 -->
+                    <div style="max-height: 300px; overflow-y: auto; border: 1px solid #E5E7EB; border-radius: 6px;">
+                        <table class="detail-table">
+                            <thead>
+                                <tr>
+                                    <th>姓名</th>
+                                    <th>工号</th>
+                                    <th>邮箱</th>
+                                </tr>
+                            </thead>
+                            <tbody id="teacherListBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="TasksPage.closeFormModal()">取消</button>
+            <button class="btn-secondary" id="btnPrev" onclick="TasksPage.prevStep()" style="display: none;">上一步</button>
+            <button class="btn-primary" id="btnNext" onclick="TasksPage.nextStep()">下一步</button>
+            <button class="btn-primary" id="btnSubmit" onclick="TasksPage.submitTask()" style="display: none;">完成</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// 任务页面管理对象
+// 使用立即执行函数确保每次加载都是新的实例
+(function() {
+    const TasksPage = {
+        currentStep: 1,
+        isEditMode: false,
+        editTaskId: null,
+        allTeachers: [],
+        selectedTeacherIds: new Set(), // 记录选中的教师ID
+        allTemplates: [],
+    allTasks: [],
+    filteredTasks: [],
+    sortBy: 'deadline',
+    sortOrder: 'desc',
+    filters: {
+        status: '',
+        startDate: '',
+        endDate: ''
+    },        // 初始化页面
+        async init() {
+            try {
+                await this.loadTasks();
+                await this.loadTemplates();
+                await this.loadTeachers();
+                this.bindEvents();
+            } catch (error) {
+                console.error('TasksPage initialization error:', error);
+            }
+        },
+
+    // 绑定事件
+    bindEvents() {
+        // 排序点击事件
+        document.querySelectorAll('.sortable').forEach(th => {
+            th.addEventListener('click', () => {
+                const sortBy = th.dataset.sort;
+                this.handleSort(sortBy);
+            });
+        });
+
+        // 发布时间单选框切换
+        document.querySelectorAll('input[name="publishType"]').forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                const startTimeInput = document.getElementById('taskStartTime');
+                startTimeInput.style.display = e.target.value === 'scheduled' ? 'block' : 'none';
+                if (e.target.value === 'now') {
+                    startTimeInput.value = '';
+                }
+            });
+        });
+
+        // 全选教师
+        document.getElementById('selectAllTeachers').addEventListener('change', (e) => {
+            this.toggleSelectAll(e.target.checked);
+        });
+
+        // 教师搜索
+        document.getElementById('teacherSearch').addEventListener('input', (e) => {
+            this.filterTeachers(e.target.value);
+        });
+
+        // 筛选按钮
+        document.getElementById('filterBtn').addEventListener('click', () => {
+            this.applyFilters();
+        });
+
+        // 重置筛选按钮
+        document.getElementById('resetFilterBtn').addEventListener('click', () => {
+            this.resetFilters();
+        });
+
+        // Date input placeholder修改
+        this.setupDateInputs();
+    },
+
+    // 加载任务列表
+    async loadTasks() {
+        const tbody = document.getElementById('tasksTableBody');
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" style="padding: 0; border: none;">
+                    <div class="loading-state">
+                        <div class="loading-spinner"></div>
+                        <div>加载中...</div>
+                    </div>
+                </td>
+            </tr>
+        `;
+
+        try {
+            const result = await TasksAPI.getTaskList();
+            if (result.success) {
+                this.allTasks = result.data || [];
+                this.sortAndRenderTasks();
+            } else {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" style="padding: 0; border: none;">
+                            <div class="empty-state">
+                                <div class="empty-state-icon">⚠️</div>
+                                <div class="empty-state-text">${result.message || '加载失败'}</div>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }
+        } catch (error) {
+            console.error('加载任务异常:', error);
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="7" style="padding: 0; border: none;">
+                        <div class="empty-state">
+                            <div class="empty-state-icon">⚠️</div>
+                            <div class="empty-state-text">加载任务时发生错误</div>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }
+    },
+
+    // 设置date input的中文placeholder
+    setupDateInputs() {
+        const startDateInput = document.getElementById('startDateFilter');
+        const endDateInput = document.getElementById('endDateFilter');
+        
+        // 设置中文placeholder
+        if (startDateInput && !startDateInput.value) {
+            startDateInput.setAttribute('data-placeholder', '起始时间（年-月-日）');
+        }
+        if (endDateInput && !endDateInput.value) {
+            endDateInput.setAttribute('data-placeholder', '终止时间（年-月-日）');
+        }
+        
+        // 监听变化以更新显示格式
+        [startDateInput, endDateInput].forEach(input => {
+            if (input) {
+                input.addEventListener('change', function() {
+                    if (this.value) {
+                        // 将YYYY-MM-DD转换为YYYY年MM月DD日显示
+                        const date = new Date(this.value);
+                        const year = date.getFullYear();
+                        const month = String(date.getMonth() + 1).padStart(2, '0');
+                        const day = String(date.getDate()).padStart(2, '0');
+                        this.setAttribute('data-value', `${year}年${month}月${day}日`);
+                    }
+                });
+            }
+        });
+    },
+
+    // 应用筛选
+    applyFilters() {
+        this.filters.status = document.getElementById('statusFilter').value;
+        this.filters.startDate = document.getElementById('startDateFilter').value;
+        this.filters.endDate = document.getElementById('endDateFilter').value;
+        
+        // 筛选任务
+        this.filteredTasks = this.allTasks.filter(task => {
+            // 状态筛选
+            if (this.filters.status && task.status !== this.filters.status) {
+                return false;
+            }
+            
+            // 起始时间筛选
+            if (this.filters.startDate && task.started_time) {
+                const taskDate = new Date(task.started_time).toISOString().split('T')[0];
+                if (taskDate < this.filters.startDate) {
+                    return false;
+                }
+            }
+            
+            // 终止时间筛选
+            if (this.filters.endDate && task.deadline) {
+                const taskDate = new Date(task.deadline).toISOString().split('T')[0];
+                if (taskDate > this.filters.endDate) {
+                    return false;
+                }
+            }
+            
+            return true;
+        });
+        
+        this.sortAndRenderTasks();
+    },
+
+    // 重置筛选
+    resetFilters() {
+        document.getElementById('statusFilter').value = '';
+        document.getElementById('startDateFilter').value = '';
+        document.getElementById('endDateFilter').value = '';
+        this.filters = {
+            status: '',
+            startDate: '',
+            endDate: ''
+        };
+        this.filteredTasks = [];
+        this.sortAndRenderTasks();
+    },
+
+    // 排序并渲染任务
+    sortAndRenderTasks() {
+        const tasksToSort = this.filteredTasks.length > 0 || this.filters.status || this.filters.startDate || this.filters.endDate 
+            ? this.filteredTasks 
+            : this.allTasks;
+        
+        const sorted = [...tasksToSort].sort((a, b) => {
+            let aVal = a[this.sortBy];
+            let bVal = b[this.sortBy];
+
+            // 处理null/undefined值
+            if (aVal == null) aVal = '';
+            if (bVal == null) bVal = '';
+
+            // 字符串比较
+            if (typeof aVal === 'string') {
+                const result = aVal.localeCompare(bVal);
+                return this.sortOrder === 'asc' ? result : -result;
+            }
+
+            // 数字/日期比较
+            if (this.sortOrder === 'asc') {
+                return aVal > bVal ? 1 : -1;
+            } else {
+                return aVal < bVal ? 1 : -1;
+            }
+        });
+
+        this.renderTasks(sorted);
+        this.updateSortUI();
+    },
+
+    // 处理排序点击
+    handleSort(sortBy) {
+        if (this.sortBy === sortBy) {
+            this.sortOrder = this.sortOrder === 'asc' ? 'desc' : 'asc';
+        } else {
+            this.sortBy = sortBy;
+            this.sortOrder = 'desc';
+        }
+        this.sortAndRenderTasks();
+    },
+
+    // 更新排序UI
+    updateSortUI() {
+        document.querySelectorAll('.sortable').forEach(th => {
+            th.classList.remove('active');
+            const icon = th.querySelector('.sort-icon');
+            if (icon) icon.textContent = '⇅';
+        });
+
+        const activeTh = document.querySelector(`[data-sort="${this.sortBy}"]`);
+        if (activeTh) {
+            activeTh.classList.add('active');
+            const icon = activeTh.querySelector('.sort-icon');
+            if (icon) icon.textContent = this.sortOrder === 'asc' ? '▲' : '▼';
+        }
+    },
+
+    // 渲染任务列表
+    renderTasks(tasks) {
+        const tbody = document.getElementById('tasksTableBody');
+        
+        if (tasks.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="7" style="padding: 0; border: none;">
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📋</div>
+                            <div class="empty-state-text">暂无任务，点击右上角创建新任务</div>
+                        </div>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        tbody.innerHTML = tasks.map(task => {
+            const statusClass = {
+                'DRAFT': 'draft',
+                'ACTIVE': 'active',
+                'EXPIRED': 'expired',
+                'CLOSED': 'closed'
+            }[task.status] || 'draft';
+
+            const statusText = {
+                'DRAFT': '未发布',
+                'ACTIVE': '已发布',
+                'EXPIRED': '超时未关闭',
+                'CLOSED': '已关闭'
+            }[task.status] || task.status;
+
+            return `
+                <tr>
+                    <td class="col-name"><a href="#" class="task-name-link" onclick="TasksPage.showDescription(${task.id}, '${task.name}'); return false;">${task.name}</a></td>
+                    <td class="col-time">${task.started_time ? Utils.formatDateTime(task.started_time) : '-'}</td>
+                    <td class="col-time">${task.deadline ? Utils.formatDateTime(task.deadline) : '-'}</td>
+                    <td class="col-template">${task.template_name}</td>
+                    <td class="col-count"><a href="#" class="task-count-link" onclick="TasksPage.showDetail(${task.id}); return false;">${task.replied_count}/${task.total_count}</a></td>
+                    <td class="col-status"><span class="status-badge ${statusClass}">${statusText}</span></td>
+                    <td class="col-actions">${this.renderActionButtons(task)}</td>
+                </tr>
+            `;
+        }).join('');
+    },
+
+    // 渲染操作按钮
+    renderActionButtons(task) {
+        const buttons = [];
+        
+        if (task.status === 'DRAFT') {
+            buttons.push(`<button class="btn-primary btn-sm" onclick="TasksPage.publishTask(${task.id})">一键发布</button>`);
+            buttons.push(`<button class="btn-secondary btn-sm" onclick="TasksPage.editTask(${task.id})">编辑</button>`);
+        } else if (task.status === 'ACTIVE' || task.status === 'EXPIRED') {
+            buttons.push(`<button class="btn-warning btn-sm" onclick="TasksPage.remindTeachers(${task.id})">一键催促</button>`);
+            buttons.push(`<button class="btn-danger btn-sm" onclick="TasksPage.closeTask(${task.id})">提前关闭</button>`);
+        } else if (task.status === 'CLOSED') {
+            buttons.push(`<button class="btn-success btn-sm" onclick="TasksPage.exportData(${task.id})">合并并导出</button>`);
+        }
+
+        return `<div class="action-buttons">${buttons.join('')}</div>`;
+    },
+
+    // 显示任务描述
+    async showDescription(taskId, taskName) {
+        const result = await TasksAPI.getTaskDetail(taskId);
+        if (result.success) {
+            document.getElementById('taskDescTitle').textContent = taskName;
+            document.getElementById('taskDescContent').textContent = result.data.description || '无描述';
+            document.getElementById('taskDescModal').style.display = 'flex';
+        } else {
+            alert(result.message);
+        }
+    },
+
+    closeDescModal() {
+        document.getElementById('taskDescModal').style.display = 'none';
+    },
+
+    // 显示任务详情
+    async showDetail(taskId) {
+        const result = await TasksAPI.getTaskDetail(taskId);
+        if (result.success) {
+            this.renderTaskDetail(result.data);
+            document.getElementById('taskDetailModal').style.display = 'flex';
+        } else {
+            alert(result.message);
+        }
+    },
+
+    renderTaskDetail(task) {
+        const tbody = document.getElementById('taskDetailTableBody');
+        tbody.innerHTML = task.teachers.map(teacher => `
+            <tr>
+                <td>${teacher.name}</td>
+                <td>${teacher.id}</td>
+                <td>${teacher.email}</td>
+                <td><span class="reply-status ${teacher.has_replied ? 'replied' : 'not-replied'}">${teacher.has_replied ? '已回复' : '未回复'}</span></td>
+            </tr>
+        `).join('');
+    },
+
+    closeDetailModal() {
+        document.getElementById('taskDetailModal').style.display = 'none';
+    },
+
+    // 打开新建任务弹窗
+    openCreateModal() {
+        this.isEditMode = false;
+        this.editTaskId = null;
+        this.currentStep = 1;
+        this.selectedTeacherIds.clear(); // 清空选中状态
+        document.getElementById('taskFormTitle').textContent = '新建任务';
+        document.getElementById('stepProgress').style.display = 'flex';
+        document.getElementById('taskForm').reset();
+        this.updateStepUI();
+        // 不在这里渲染教师列表，等到step3显示时再渲染
+        document.getElementById('taskFormModal').style.display = 'flex';
+    },
+
+    // 编辑任务
+    async editTask(taskId) {
+        const result = await TasksAPI.getTaskDetail(taskId);
+        if (!result.success) {
+            alert(result.message);
+            return;
+        }
+
+        const task = result.data;
+        this.isEditMode = true;
+        this.editTaskId = taskId;
+        this.currentStep = 1;
+
+        document.getElementById('taskFormTitle').textContent = '编辑任务';
+        document.getElementById('stepProgress').style.display = 'none';
+
+        // 填充表单
+        document.getElementById('taskName').value = task.name;
+        document.getElementById('taskDesc').value = task.description || '';
+        document.getElementById('taskDeadline').value = task.deadline ? new Date(task.deadline).toISOString().slice(0, 16) : '';
+        document.getElementById('taskTemplate').value = task.template_id;
+        document.getElementById('mailSubject').value = task.mail_subject || '';
+        document.getElementById('mailContent').value = task.mail_content || '';
+
+        if (task.started_time) {
+            document.querySelector('input[name="publishType"][value="scheduled"]').checked = true;
+            document.getElementById('taskStartTime').style.display = 'block';
+            document.getElementById('taskStartTime').value = new Date(task.started_time).toISOString().slice(0, 16);
+        }
+
+        // 显示所有步骤
+        document.querySelectorAll('.form-section').forEach(section => section.classList.add('active'));
+        
+        // 预选教师（使用selectedTeacherIds）
+        this.selectedTeacherIds.clear();
+        task.teachers.forEach(t => this.selectedTeacherIds.add(t.id));
+        this.renderTeacherList();
+
+        document.getElementById('btnNext').style.display = 'none';
+        document.getElementById('btnPrev').style.display = 'none';
+        document.getElementById('btnSubmit').style.display = 'inline-block';
+        document.getElementById('btnSubmit').textContent = '保存';
+
+        document.getElementById('taskFormModal').style.display = 'flex';
+    },
+
+    // 关闭表单弹窗
+    closeFormModal() {
+        document.getElementById('taskFormModal').style.display = 'none';
+        document.getElementById('taskForm').reset();
+        this.currentStep = 1;
+        this.updateStepUI();
+    },
+
+    // 下一步
+    nextStep() {
+        if (!this.validateStep(this.currentStep)) {
+            return;
+        }
+        
+        if (this.currentStep < 3) {
+            this.currentStep++;
+            this.updateStepUI();
+        }
+    },
+
+    // 上一步
+    prevStep() {
+        if (this.currentStep > 1) {
+            this.currentStep--;
+            this.updateStepUI();
+        }
+    },
+
+    // 更新步骤UI
+    updateStepUI() {
+        // 更新进度条
+        document.querySelectorAll('.step-item').forEach((item, index) => {
+            item.classList.remove('active', 'completed');
+            if (index + 1 < this.currentStep) {
+                item.classList.add('completed');
+            } else if (index + 1 === this.currentStep) {
+                item.classList.add('active');
+            }
+        });
+
+        // 更新表单区域显示
+        document.querySelectorAll('.form-section').forEach((section, index) => {
+            section.classList.toggle('active', index + 1 === this.currentStep);
+        });
+
+        // 更新按钮显示
+        document.getElementById('btnPrev').style.display = this.currentStep > 1 ? 'inline-block' : 'none';
+        document.getElementById('btnNext').style.display = this.currentStep < 3 ? 'inline-block' : 'none';
+        document.getElementById('btnSubmit').style.display = this.currentStep === 3 ? 'inline-block' : 'none';
+        
+        // 当切换到step3时，渲染教师列表
+        if (this.currentStep === 3) {
+            this.renderTeacherList();
+        }
+    },
+
+    // 验证当前步骤
+    validateStep(step) {
+        if (step === 1) {
+            const name = document.getElementById('taskName').value.trim();
+            const deadline = document.getElementById('taskDeadline').value;
+            const publishType = document.querySelector('input[name="publishType"]:checked').value;
+            const startTime = document.getElementById('taskStartTime').value;
+
+            if (!name) {
+                alert('请填写任务名称');
+                return false;
+            }
+            if (!deadline) {
+                alert('请选择截止时间');
+                return false;
+            }
+            if (publishType === 'scheduled' && !startTime) {
+                alert('请选择发布时间');
+                return false;
+            }
+            return true;
+        } else if (step === 2) {
+            const template = document.getElementById('taskTemplate').value;
+            const subject = document.getElementById('mailSubject').value.trim();
+            const content = document.getElementById('mailContent').value.trim();
+
+            if (!template) {
+                alert('请选择表格模板');
+                return false;
+            }
+            if (!subject) {
+                alert('请填写邮件标题');
+                return false;
+            }
+            if (!content) {
+                alert('请填写邮件正文');
+                return false;
+            }
+            return true;
+        } else if (step === 3) {
+            if (this.selectedTeacherIds.size === 0) {
+                alert('请至少选择一位教师');
+                return false;
+            }
+            return true;
+        }
+        return true;
+    },
+
+    // 提交任务
+    async submitTask() {
+        if (!this.validateStep(1) || !this.validateStep(2) || !this.validateStep(3)) {
+            return;
+        }
+
+        const publishType = document.querySelector('input[name="publishType"]:checked').value;
+        const teacherIds = Array.from(this.selectedTeacherIds);
+
+        const taskData = {
+            name: document.getElementById('taskName').value.trim(),
+            description: document.getElementById('taskDesc').value.trim() || null,
+            deadline: new Date(document.getElementById('taskDeadline').value).toISOString(),
+            started_time: publishType === 'scheduled' ? new Date(document.getElementById('taskStartTime').value).toISOString() : null,
+            template_id: parseInt(document.getElementById('taskTemplate').value),
+            mail_subject: document.getElementById('mailSubject').value.trim(),
+            mail_content: document.getElementById('mailContent').value.trim(),
+            teacher_ids: teacherIds
+        };
+
+        const result = this.isEditMode 
+            ? await TasksAPI.updateTask(this.editTaskId, taskData)
+            : await TasksAPI.createTask(taskData);
+
+        if (result.success) {
+            alert(result.message);
+            this.closeFormModal();
+            this.loadTasks();
+        } else {
+            alert(result.message);
+        }
+    },
+
+    // 加载模板列表
+    async loadTemplates() {
+        const result = await TasksAPI.getTemplates();
+        if (result.success) {
+            this.allTemplates = result.data || [];
+            const select = document.getElementById('taskTemplate');
+            select.innerHTML = '<option value="">请选择模板</option>' + 
+                this.allTemplates.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+        }
+    },
+
+    // 加载教师列表
+    async loadTeachers() {
+        try {
+            const result = await TasksAPI.getTeachers();
+            if (result.success) {
+                this.allTeachers = result.data || [];
+            } else {
+                this.allTeachers = [];
+            }
+        } catch (error) {
+            this.allTeachers = [];
+        }
+    },
+
+    // 渲染教师列表
+    renderTeacherList(filter = '') {
+        const tbody = document.getElementById('teacherListBody');
+        if (!tbody) return;
+        
+        // 筛选教师（筛选不影响选中状态）
+        const filterLower = filter.toLowerCase();
+        const teachers = filter 
+            ? this.allTeachers.filter(t => 
+                t.name.toLowerCase().includes(filterLower) || 
+                t.email.toLowerCase().includes(filterLower) || 
+                String(t.id).includes(filter)
+              )
+            : this.allTeachers;
+        
+        if (teachers.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 20px; color: #9CA3AF;">暂无教师数据</td></tr>';
+            return;
+        }
+
+        // 根据selectedTeacherIds渲染，确保选中状态不受筛选影响
+        tbody.innerHTML = teachers.map(teacher => {
+            const isSelected = this.selectedTeacherIds.has(teacher.id);
+            return `
+                <tr class="teacher-row ${isSelected ? 'selected' : ''}" data-teacher-id="${teacher.id}" onclick="TasksPage.toggleTeacherRow(${teacher.id})">
+                    <td>${teacher.name}</td>
+                    <td>${teacher.id}</td>
+                    <td>${teacher.email}</td>
+                </tr>
+            `;
+        }).join('');
+        
+        // 更新选中数量和全选按钮状态
+        this.updateSelectedCount();
+        this.updateSelectAllState();
+    },
+
+    // 过滤教师
+    filterTeachers(keyword) {
+        this.renderTeacherList(keyword);
+    },
+
+    // 切换教师行选中状态
+    toggleTeacherRow(teacherId) {
+        const row = document.querySelector(`tr[data-teacher-id="${teacherId}"]`);
+        if (!row) return;
+        
+        // 切换选中状态
+        if (this.selectedTeacherIds.has(teacherId)) {
+            this.selectedTeacherIds.delete(teacherId);
+            row.classList.remove('selected');
+        } else {
+            this.selectedTeacherIds.add(teacherId);
+            row.classList.add('selected');
+        }
+        
+        this.updateSelectedCount();
+        this.updateSelectAllState();
+    },
+
+    // 全选/取消全选
+    toggleSelectAll(selectAll) {
+        if (selectAll) {
+            // 全选：将所有教师ID加入selectedTeacherIds
+            this.allTeachers.forEach(teacher => {
+                this.selectedTeacherIds.add(teacher.id);
+            });
+        } else {
+            // 取消全选：清空selectedTeacherIds
+            this.selectedTeacherIds.clear();
+        }
+        
+        // 重新渲染以更新UI
+        this.renderTeacherList(document.getElementById('teacherSearch').value);
+    },
+
+    // 更新全选按钮状态
+    updateSelectAllState() {
+        const selectAllCheckbox = document.getElementById('selectAllTeachers');
+        if (this.allTeachers.length === 0) {
+            selectAllCheckbox.checked = false;
+        } else {
+            selectAllCheckbox.checked = this.selectedTeacherIds.size === this.allTeachers.length;
+        }
+    },
+
+    // 更新选中数量
+    updateSelectedCount() {
+        const count = this.selectedTeacherIds.size;
+        document.getElementById('selectedCount').textContent = `已选择: ${count}`;
+    },
+
+    // 一键发布任务
+    async publishTask(taskId) {
+        if (!confirm('确定要立即发布这个任务吗？发布后将立即发送邮件给所有目标教师。')) {
+            return;
+        }
+
+        const result = await TasksAPI.publishTask(taskId);
+        if (result.success) {
+            alert(result.message);
+            this.loadTasks();
+        } else {
+            alert(result.message);
+        }
+    },
+
+    // 关闭任务
+    async closeTask(taskId) {
+        if (!confirm('确定要提前关闭这个任务吗？')) {
+            return;
+        }
+
+        const result = await TasksAPI.closeTask(taskId);
+        if (result.success) {
+            alert(result.message);
+            this.loadTasks();
+        } else {
+            alert(result.message);
+        }
+    },
+
+    // 催促教师
+    remindTeachers(taskId) {
+        alert('催促功能开发中...');
+    },
+
+    // 导出数据
+    async exportData(taskId) {
+        if (!confirm('确定要合并并导出当前任务的数据吗？这可能需要一点时间。')) {
+            return;
+        }
+
+        const btn = document.querySelector(`button[onclick="TasksPage.exportData(${taskId})"]`);
+        const originalText = btn ? btn.textContent : '合并并导出';
+        if (btn) {
+            btn.textContent = '处理中...';
+            btn.disabled = true;
+        }
+
+        try {
+            const result = await TasksAPI.aggregateTask(taskId);
+            if (result.success) {
+                alert('合并成功！文件已生成。');
+            } else {
+                alert(result.message);
+            }
+        } catch (error) {
+            console.error('Export failed:', error);
+            alert('导出失败，请查看控制台日志');
+        } finally {
+            if (btn) {
+                btn.textContent = originalText;
+                btn.disabled = false;
+            }
+        }
+    }
+};
+
+// 暴露到全局供HTML onclick使用
+window.TasksPage = TasksPage;
+
+// 页面加载完成后初始化
+setTimeout(() => {
+    const tbody = document.getElementById('tasksTableBody');
+    if (tbody) {
+        TasksPage.init();
+    } else {
+        setTimeout(() => TasksPage.init(), 100);
+    }
+}, 0);
+
+})(); // 立即执行函数结束
+</script>

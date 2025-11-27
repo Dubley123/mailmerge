@@ -1,0 +1,853 @@
+<!-- 表单模板页面 -->
+<link rel="stylesheet" href="/frontend/static/css/templates-new.css">
+
+<div class="templates-container">
+    <!-- 顶部工具栏 -->
+    <div class="toolbar">
+        <div class="toolbar-left">
+            <h1 class="page-title">表单模板</h1>
+        </div>
+        <div class="toolbar-right">
+            <!-- 筛选控件 -->
+            <div class="filter-group" style="display: inline-flex; gap: 8px; margin-right: 16px;">
+                <select id="fieldCountFilter" class="filter-select">
+                    <option value="">全部字段数</option>
+                    <option value="1-5">1-5个字段</option>
+                    <option value="6-10">6-10个字段</option>
+                    <option value="11-20">11-20个字段</option>
+                    <option value="20+">20+个字段</option>
+                </select>
+                <input type="date" id="templateStartDateFilter" class="filter-input" placeholder="起始时间">
+                <input type="date" id="templateEndDateFilter" class="filter-input" placeholder="终止时间">
+                <button id="templateFilterBtn" class="btn-secondary">筛选</button>
+                <button id="templateResetFilterBtn" class="btn-secondary">重置</button>
+            </div>
+            <button class="btn-primary" onclick="TemplatesPage.openCreateModal()">
+                <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/>
+                </svg>
+                新建模板
+            </button>
+        </div>
+    </div>
+
+    <!-- 模板列表表格 -->
+    <div class="table-card">
+        <div id="templatesTableContainer">
+            <!-- 表格内容将通过 JS 动态加载 -->
+        </div>
+    </div>
+</div>
+
+<!-- 模板描述模态框 -->
+<div id="templateDescModal" class="modal-overlay" style="display: none;">
+    <div class="modal" style="max-width: 500px;">
+        <div class="modal-header">
+            <h3 class="modal-title" id="templateDescModalTitle">模板描述</h3>
+            <button class="close-btn" onclick="TemplatesPage.closeTemplateDescModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <div id="templateDescContent" style="color: #666; line-height: 1.6;">
+                <!-- 描述内容将通过 JS 动态加载 -->
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="TemplatesPage.closeTemplateDescModal()">关闭</button>
+        </div>
+    </div>
+</div>
+
+<!-- 字段详情模态框 -->
+<div id="fieldDetailModal" class="modal-overlay" style="display: none;">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 class="modal-title" id="fieldDetailModalTitle">模板字段详情</h3>
+            <button class="close-btn" onclick="TemplatesPage.closeFieldDetailModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <div id="fieldDetailContent" class="field-detail-list">
+                <!-- 字段详情将通过 JS 动态加载 -->
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="TemplatesPage.closeFieldDetailModal()">关闭</button>
+        </div>
+    </div>
+</div>
+
+<!-- 创建/编辑模板模态框 -->
+<div id="templateFormModal" class="modal-overlay" style="display: none;">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 class="modal-title" id="templateFormModalTitle">新建模板</h3>
+            <button class="close-btn" onclick="TemplatesPage.closeTemplateFormModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <form id="templateForm">
+                <!-- Excel导入 -->
+                <div class="form-group" id="excelUploadSection">
+                    <label class="form-label">从 Excel 导入模板</label>
+                    <input type="file" id="excelFileInput" accept=".xlsx,.xls" 
+                           style="display: none;" onchange="TemplatesPage.handleExcelUpload(event)">
+                    <div class="excel-upload-area" onclick="document.getElementById('excelFileInput').click()">
+                        <div class="upload-icon">📤</div>
+                        <div class="upload-text">点击上传 Excel 文件</div>
+                        <div class="upload-hint" id="excelFileName">支持 .xlsx 和 .xls 格式</div>
+                    </div>
+                </div>
+
+                <!-- 基本信息 -->
+                <div class="form-group">
+                    <label class="form-label">
+                        模板名称 <span class="required">*</span>
+                    </label>
+                    <input type="text" class="form-input" id="templateName" 
+                           placeholder="请输入模板名称" required maxlength="100">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">模板描述</label>
+                    <textarea class="form-input form-textarea" id="templateDescription" 
+                              placeholder="请输入模板描述（可选）"></textarea>
+                </div>
+
+                <!-- 字段管理 -->
+                <div class="fields-section">
+                    <div class="fields-header">
+                        <span class="fields-title">表单字段</span>
+                        <button type="button" class="add-field-btn" onclick="TemplatesPage.addField()">
+                            <i>➕</i> 添加字段
+                        </button>
+                    </div>
+                    <div id="fieldsList" class="fields-list">
+                        <!-- 字段列表将通过 JS 动态生成 -->
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="TemplatesPage.closeTemplateFormModal()">取消</button>
+            <button class="btn btn-primary" onclick="TemplatesPage.saveTemplate()">保存</button>
+        </div>
+    </div>
+</div>
+
+<script src="/frontend/static/js/api/templates.js"></script>
+<script>
+// 使用 IIFE 避免全局变量污染，每次加载页面时创建新实例
+(function() {
+const TemplatesPage = (() => {
+    // 私有变量
+    let templates = [];
+    let filteredTemplates = [];
+    let currentTemplate = null;
+    let editingTemplateId = null;
+    let draggedElement = null;
+    let fieldCounter = 0;
+    let sortBy = 'created_at';
+    let sortOrder = 'desc';
+    let filters = {
+        fieldCount: '',
+        startDate: '',
+        endDate: ''
+    };
+
+    // 字段类型选项
+    const fieldTypes = [
+        { value: 'TEXT', label: '文本' },
+        { value: 'NUMBER', label: '数字' },
+        { value: 'DATE', label: '日期' },
+        { value: 'TIME', label: '时间' },
+        { value: 'BOOLEAN', label: '是/否' },
+        { value: 'RADIO', label: '单选' },
+        { value: 'CHECKBOX', label: '多选' }
+    ];
+
+    // ==================== 初始化 ====================
+    async function init() {
+        await loadTemplates();
+        bindSortEvents();
+        bindFilterEvents();
+    }
+
+    function bindSortEvents() {
+        // 延迟绑定，确保DOM已渲染
+        setTimeout(() => {
+            document.querySelectorAll('.sortable').forEach(th => {
+                th.addEventListener('click', () => {
+                    const sortByField = th.dataset.sort;
+                    handleSort(sortByField);
+                });
+            });
+        }, 100);
+    }
+
+    function bindFilterEvents() {
+        const filterBtn = document.getElementById('templateFilterBtn');
+        const resetBtn = document.getElementById('templateResetFilterBtn');
+        const startDateInput = document.getElementById('templateStartDateFilter');
+        const endDateInput = document.getElementById('templateEndDateFilter');
+        
+        if (filterBtn) {
+            filterBtn.addEventListener('click', applyFilters);
+        }
+        
+        if (resetBtn) {
+            resetBtn.addEventListener('click', resetFilters);
+        }
+        
+        // 设置中文placeholder
+        if (startDateInput && !startDateInput.value) {
+            startDateInput.setAttribute('data-placeholder', '起始时间（年-月-日）');
+        }
+        if (endDateInput && !endDateInput.value) {
+            endDateInput.setAttribute('data-placeholder', '终止时间（年-月-日）');
+        }
+        
+        [startDateInput, endDateInput].forEach(input => {
+            if (input) {
+                input.addEventListener('change', function() {
+                    if (this.value) {
+                        const date = new Date(this.value);
+                        const year = date.getFullYear();
+                        const month = String(date.getMonth() + 1).padStart(2, '0');
+                        const day = String(date.getDate()).padStart(2, '0');
+                        this.setAttribute('data-value', `${year}年${month}月${day}日`);
+                    }
+                });
+            }
+        });
+    }
+
+    // ==================== 筛选功能 ====================
+    
+    function applyFilters() {
+        filters.fieldCount = document.getElementById('fieldCountFilter').value;
+        filters.startDate = document.getElementById('templateStartDateFilter').value;
+        filters.endDate = document.getElementById('templateEndDateFilter').value;
+        
+        filteredTemplates = templates.filter(template => {
+            // 字段数量筛选
+            if (filters.fieldCount) {
+                const fieldCount = template.field_count || 0;
+                if (filters.fieldCount === '1-5' && (fieldCount < 1 || fieldCount > 5)) {
+                    return false;
+                }
+                if (filters.fieldCount === '6-10' && (fieldCount < 6 || fieldCount > 10)) {
+                    return false;
+                }
+                if (filters.fieldCount === '11-20' && (fieldCount < 11 || fieldCount > 20)) {
+                    return false;
+                }
+                if (filters.fieldCount === '20+' && fieldCount <= 20) {
+                    return false;
+                }
+            }
+            
+            // 起始时间筛选
+            if (filters.startDate && template.created_at) {
+                const templateDate = new Date(template.created_at).toISOString().split('T')[0];
+                if (templateDate < filters.startDate) {
+                    return false;
+                }
+            }
+            
+            // 终止时间筛选
+            if (filters.endDate && template.created_at) {
+                const templateDate = new Date(template.created_at).toISOString().split('T')[0];
+                if (templateDate > filters.endDate) {
+                    return false;
+                }
+            }
+            
+            return true;
+        });
+        
+        sortAndRenderTemplates();
+    }
+    
+    function resetFilters() {
+        document.getElementById('fieldCountFilter').value = '';
+        document.getElementById('templateStartDateFilter').value = '';
+        document.getElementById('templateEndDateFilter').value = '';
+        filters = {
+            fieldCount: '',
+            startDate: '',
+            endDate: ''
+        };
+        filteredTemplates = [];
+        sortAndRenderTemplates();
+    }
+
+    // ==================== 模板列表 ====================
+    
+    async function loadTemplates() {
+        const container = document.getElementById('templatesTableContainer');
+        container.innerHTML = '<div class="loading-container"><div class="loading-spinner"></div></div>';
+
+        try {
+            templates = await TemplateAPI.getTemplates();
+            sortAndRenderTemplates();
+        } catch (error) {
+            console.error('加载模板列表失败:', error);
+            container.innerHTML = `
+                <div class="empty-state">
+                    <i>⚠️</i>
+                    <p>加载失败: ${error.message}</p>
+                    <button class="btn btn-primary" onclick="TemplatesPage.loadTemplates()">重试</button>
+                </div>
+            `;
+        }
+    }
+
+    function sortAndRenderTemplates() {
+        const templatesToSort = filteredTemplates.length > 0 || filters.fieldCount || filters.startDate || filters.endDate
+            ? filteredTemplates
+            : templates;
+        
+        const sorted = [...templatesToSort].sort((a, b) => {
+            let aVal = a[sortBy];
+            let bVal = b[sortBy];
+
+            // 处理null/undefined值
+            if (aVal == null) aVal = '';
+            if (bVal == null) bVal = '';
+
+            // 字符串比较
+            if (typeof aVal === 'string') {
+                const result = aVal.localeCompare(bVal);
+                return sortOrder === 'asc' ? result : -result;
+            }
+
+            // 数字/日期比较
+            if (sortOrder === 'asc') {
+                return aVal > bVal ? 1 : -1;
+            } else {
+                return aVal < bVal ? 1 : -1;
+            }
+        });
+
+        renderTemplateList(sorted);
+        updateSortUI();
+    }
+
+    function handleSort(sortByField) {
+        if (sortBy === sortByField) {
+            sortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
+        } else {
+            sortBy = sortByField;
+            sortOrder = 'desc';
+        }
+        sortAndRenderTemplates();
+    }
+
+    function updateSortUI() {
+        document.querySelectorAll('.sortable').forEach(th => {
+            th.classList.remove('active');
+            const icon = th.querySelector('.sort-icon');
+            if (icon) icon.textContent = '⇅';
+        });
+
+        const activeTh = document.querySelector(`[data-sort="${sortBy}"]`);
+        if (activeTh) {
+            activeTh.classList.add('active');
+            const icon = activeTh.querySelector('.sort-icon');
+            if (icon) icon.textContent = sortOrder === 'asc' ? '▲' : '▼';
+        }
+    }
+
+    function renderTemplateList(sortedTemplates = templates) {
+        const container = document.getElementById('templatesTableContainer');
+
+        if (sortedTemplates.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">📋</div>
+                    <div class="empty-state-text">暂无模板，点击右上角创建新模板</div>
+                </div>
+            `;
+            return;
+        }
+
+        const tableHTML = `
+            <table class="templates-table">
+                <thead>
+                    <tr>
+                        <th class="col-name sortable" data-sort="name">
+                            模板名称
+                            <span class="sort-icon">⇅</span>
+                        </th>
+                        <th class="col-count sortable" data-sort="field_count">
+                            字段数量
+                            <span class="sort-icon">⇅</span>
+                        </th>
+                        <th class="col-time sortable active" data-sort="created_at">
+                            创建时间
+                            <span class="sort-icon">▼</span>
+                        </th>
+                        <th class="col-actions">操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${sortedTemplates.map(template => `
+                        <tr>
+                            <td class="col-name">
+                                <a href="#" class="template-name-link" onclick="TemplatesPage.viewTemplateDesc(${template.id}, '${escapeHtml(template.name)}', '${escapeHtml(template.description || '')}'); return false;">
+                                    ${escapeHtml(template.name)}
+                                </a>
+                            </td>
+                            <td class="col-count">
+                                <a href="#" class="field-count-link" onclick="TemplatesPage.viewTemplateFields(${template.id}); return false;">${template.field_count}</a>
+                            </td>
+                            <td class="col-time">${formatDateTime(template.created_at)}</td>
+                            <td class="col-actions">
+                                <div class="action-buttons">
+                                    <button class="btn-secondary btn-sm" onclick="TemplatesPage.openEditModal(${template.id})">
+                                        编辑
+                                    </button>
+                                    <button class="btn-danger btn-sm" onclick="TemplatesPage.deleteTemplate(${template.id})">
+                                        删除
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+
+        container.innerHTML = tableHTML;
+        
+        // 重新绑定排序事件
+        bindSortEvents();
+    }
+
+    // ==================== 查看模板描述 ====================
+    
+    function viewTemplateDesc(templateId, templateName, description) {
+        document.getElementById('templateDescModalTitle').textContent = templateName;
+        const content = document.getElementById('templateDescContent');
+        
+        if (description && description !== 'null' && description.trim()) {
+            content.textContent = description;
+        } else {
+            content.innerHTML = '<p style="color: #bbb;">暂无描述</p>';
+        }
+        
+        document.getElementById('templateDescModal').style.display = 'flex';
+    }
+    
+    function closeTemplateDescModal() {
+        document.getElementById('templateDescModal').style.display = 'none';
+    }
+
+    // ==================== 查看字段详情 ====================
+    
+    async function viewTemplateFields(templateId) {
+        try {
+            const template = await TemplateAPI.getTemplateDetail(templateId);
+            currentTemplate = template;
+
+            document.getElementById('fieldDetailModalTitle').textContent = `${template.name} - 字段详情`;
+
+            const content = document.getElementById('fieldDetailContent');
+
+            if (template.fields.length === 0) {
+                content.innerHTML = `
+                    <div class="empty-state">
+                        <p>该模板暂无字段</p>
+                    </div>
+                `;
+            } else {
+                content.innerHTML = template.fields.map(field => `
+                    <div class="field-detail-item">
+                        <div class="field-detail-header">
+                            <span class="field-detail-name">${escapeHtml(field.display_name)}</span>
+                            ${field.required ? '<span class="field-detail-required">必填</span>' : ''}
+                        </div>
+                        <div class="field-detail-info">
+                            <span class="field-detail-type">${getFieldTypeLabel(field.data_type)}</span>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            document.getElementById('fieldDetailModal').style.display = 'flex';
+        } catch (error) {
+            console.error('加载模板详情失败:', error);
+            alert('加载模板详情失败: ' + error.message);
+        }
+    }
+
+    function closeFieldDetailModal() {
+        document.getElementById('fieldDetailModal').style.display = 'none';
+        currentTemplate = null;
+    }
+
+    // ==================== Excel 上传处理 ====================
+    
+    async function handleExcelUpload(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        const fileNameSpan = document.getElementById('excelFileName');
+        fileNameSpan.textContent = '正在解析...';
+        fileNameSpan.className = 'upload-hint loading';
+        
+        try {
+            const result = await TemplateAPI.parseExcel(file);
+            
+            // 填充模板名称
+            if (result.template_name) {
+                document.getElementById('templateName').value = result.template_name;
+            }
+            
+            // 清空现有字段
+            document.getElementById('fieldsList').innerHTML = '';
+            fieldCounter = 0;
+            
+            // 添加解析出的字段
+            if (result.fields && result.fields.length > 0) {
+                result.fields.forEach(field => {
+                    addField({
+                        display_name: field.display_name,
+                        data_type: field.data_type,
+                        required: field.required
+                    });
+                });
+            }
+            
+            fileNameSpan.textContent = `✓ 已导入 ${result.fields.length} 个字段`;
+            fileNameSpan.className = 'upload-hint success';
+            
+            // 3秒后恢复提示文本
+            setTimeout(() => {
+                fileNameSpan.textContent = '支持 .xlsx 和 .xls 格式';
+                fileNameSpan.className = 'upload-hint';
+            }, 3000);
+        } catch (error) {
+            console.error('解析 Excel 失败:', error);
+            fileNameSpan.textContent = '✗ 解析失败: ' + error.message;
+            fileNameSpan.className = 'upload-hint error';
+            
+            setTimeout(() => {
+                fileNameSpan.textContent = '支持 .xlsx 和 .xls 格式';
+                fileNameSpan.className = 'upload-hint';
+            }, 3000);
+        }
+        
+        // 清空文件选择
+        event.target.value = '';
+    }
+
+    // ==================== 创建模板 ====================
+    
+    function openCreateModal() {
+        editingTemplateId = null;
+        fieldCounter = 0;
+
+        document.getElementById('templateFormModalTitle').textContent = '新建模板';
+        document.getElementById('templateName').value = '';
+        document.getElementById('templateDescription').value = '';
+        document.getElementById('fieldsList').innerHTML = '';
+        document.getElementById('excelUploadSection').style.display = 'block';
+
+        // 默认添加一个字段
+        addField();
+
+        document.getElementById('templateFormModal').style.display = 'flex';
+    }
+
+    // ==================== 编辑模板 ====================
+    
+    async function openEditModal(templateId) {
+        try {
+            const template = await TemplateAPI.getTemplateDetail(templateId);
+            editingTemplateId = templateId;
+            currentTemplate = template;
+            fieldCounter = 0;
+
+            document.getElementById('templateFormModalTitle').textContent = '编辑模板';
+            document.getElementById('templateName').value = template.name;
+            document.getElementById('templateDescription').value = template.description || '';
+            document.getElementById('excelUploadSection').style.display = 'none';
+
+            // 渲染现有字段
+            const fieldsList = document.getElementById('fieldsList');
+            fieldsList.innerHTML = '';
+
+            template.fields.forEach(field => {
+                addField(field);
+            });
+
+            document.getElementById('templateFormModal').style.display = 'flex';
+        } catch (error) {
+            console.error('加载模板详情失败:', error);
+            alert('加载模板详情失败: ' + error.message);
+        }
+    }
+
+    function closeTemplateFormModal() {
+        document.getElementById('templateFormModal').style.display = 'none';
+        editingTemplateId = null;
+        currentTemplate = null;
+    }
+
+    // ==================== 字段管理 ====================
+    
+    function addField(fieldData = null) {
+        const fieldId = fieldCounter++;
+        const fieldsList = document.getElementById('fieldsList');
+
+        const fieldItem = document.createElement('div');
+        fieldItem.className = 'field-item';
+        fieldItem.draggable = true;
+        fieldItem.dataset.fieldId = fieldId;
+
+        fieldItem.innerHTML = `
+            <div class="field-inline">
+                <span class="drag-handle" title="拖动排序">☰</span>
+                <span class="field-number">#${fieldsList.children.length + 1}</span>
+                <input type="text" class="form-input" name="field_name_${fieldId}" 
+                       placeholder="字段名称" required maxlength="100"
+                       value="${fieldData ? escapeHtml(fieldData.display_name) : ''}">
+                <select class="form-select" name="field_type_${fieldId}" required>
+                    ${fieldTypes.map(type => `
+                        <option value="${type.value}" ${fieldData && fieldData.data_type === type.value ? 'selected' : ''}>
+                            ${type.label}
+                        </option>
+                    `).join('')}
+                </select>
+                <div class="form-checkbox-wrapper">
+                    <input type="checkbox" id="field_required_${fieldId}" name="field_required_${fieldId}"
+                           class="form-checkbox-input" ${fieldData && fieldData.required ? 'checked' : ''}>
+                    <label for="field_required_${fieldId}" class="form-checkbox-label">
+                        <span class="checkbox-box"></span>
+                        <span class="checkbox-text">必填</span>
+                    </label>
+                </div>
+                <button type="button" class="field-control-btn delete" onclick="TemplatesPage.removeField(${fieldId})" title="删除字段">
+                    ×
+                </button>
+            </div>
+        `;
+
+        // 添加拖拽事件
+        fieldItem.addEventListener('dragstart', handleDragStart);
+        fieldItem.addEventListener('dragover', handleDragOver);
+        fieldItem.addEventListener('drop', handleDrop);
+        fieldItem.addEventListener('dragend', handleDragEnd);
+
+        fieldsList.appendChild(fieldItem);
+        updateFieldNumbers();
+    }
+
+    function removeField(fieldId) {
+        const fieldItem = document.querySelector(`[data-field-id="${fieldId}"]`);
+        if (fieldItem) {
+            fieldItem.remove();
+            updateFieldNumbers();
+        }
+    }
+
+    function updateFieldNumbers() {
+        const fieldItems = document.querySelectorAll('.field-item');
+        fieldItems.forEach((item, index) => {
+            const numberSpan = item.querySelector('.field-number');
+            if (numberSpan) {
+                numberSpan.textContent = index + 1;
+            }
+        });
+    }
+
+    // ==================== 拖拽排序 ====================
+    
+    function handleDragStart(e) {
+        draggedElement = this;
+        this.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+    }
+
+    function handleDragOver(e) {
+        if (e.preventDefault) {
+            e.preventDefault();
+        }
+        e.dataTransfer.dropEffect = 'move';
+
+        const afterElement = getDragAfterElement(e.clientY);
+        const fieldsList = document.getElementById('fieldsList');
+
+        if (afterElement == null) {
+            fieldsList.appendChild(draggedElement);
+        } else {
+            fieldsList.insertBefore(draggedElement, afterElement);
+        }
+
+        return false;
+    }
+
+    function handleDrop(e) {
+        if (e.stopPropagation) {
+            e.stopPropagation();
+        }
+        updateFieldNumbers();
+        return false;
+    }
+
+    function handleDragEnd(e) {
+        this.classList.remove('dragging');
+        draggedElement = null;
+    }
+
+    function getDragAfterElement(y) {
+        const fieldsList = document.getElementById('fieldsList');
+        const draggableElements = [...fieldsList.querySelectorAll('.field-item:not(.dragging)')];
+
+        return draggableElements.reduce((closest, child) => {
+            const box = child.getBoundingClientRect();
+            const offset = y - box.top - box.height / 2;
+
+            if (offset < 0 && offset > closest.offset) {
+                return { offset: offset, element: child };
+            } else {
+                return closest;
+            }
+        }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }
+
+    // ==================== 保存模板 ====================
+    
+    async function saveTemplate() {
+        const name = document.getElementById('templateName').value.trim();
+        const description = document.getElementById('templateDescription').value.trim();
+
+        if (!name) {
+            alert('请输入模板名称');
+            return;
+        }
+
+        // 收集字段数据
+        const fieldItems = document.querySelectorAll('.field-item');
+        if (fieldItems.length === 0) {
+            alert('请至少添加一个字段');
+            return;
+        }
+
+        const fields = [];
+        let hasError = false;
+
+        fieldItems.forEach((item, index) => {
+            const fieldId = item.dataset.fieldId;
+            const fieldName = document.querySelector(`[name="field_name_${fieldId}"]`).value.trim();
+            const fieldType = document.querySelector(`[name="field_type_${fieldId}"]`).value;
+            const fieldRequired = document.querySelector(`[name="field_required_${fieldId}"]`).checked;
+
+            if (!fieldName) {
+                alert(`第 ${index + 1} 个字段的名称不能为空`);
+                hasError = true;
+                return;
+            }
+
+            fields.push({
+                display_name: fieldName,
+                data_type: fieldType,
+                required: fieldRequired,
+                ord: index  // 直接使用index作为ord，从0开始
+            });
+        });
+
+        if (hasError) {
+            return;
+        }
+
+        const data = {
+            name: name,
+            description: description || null,
+            fields: fields
+        };
+
+        try {
+            if (editingTemplateId) {
+                await TemplateAPI.updateTemplate(editingTemplateId, data);
+                alert('模板更新成功');
+            } else {
+                await TemplateAPI.createTemplate(data);
+                alert('模板创建成功');
+            }
+
+            closeTemplateFormModal();
+            await loadTemplates();
+        } catch (error) {
+            console.error('保存模板失败:', error);
+            alert('保存失败: ' + error.message);
+        }
+    }
+
+    // ==================== 删除模板 ====================
+    
+    async function deleteTemplate(templateId) {
+        if (!confirm('确定要删除这个模板吗？此操作不可撤销。')) {
+            return;
+        }
+
+        try {
+            await TemplateAPI.deleteTemplate(templateId);
+            alert('模板删除成功');
+            await loadTemplates();
+        } catch (error) {
+            console.error('删除模板失败:', error);
+            alert('删除失败: ' + error.message);
+        }
+    }
+
+    // ==================== 工具函数 ====================
+    
+    function formatDateTime(dateString) {
+        const date = new Date(dateString);
+        return date.toLocaleString('zh-CN', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function getFieldTypeLabel(type) {
+        const typeObj = fieldTypes.find(t => t.value === type);
+        return typeObj ? typeObj.label : type;
+    }
+
+    // ==================== 公开接口 ====================
+    
+    return {
+        init,
+        loadTemplates,
+        viewTemplateDesc,
+        closeTemplateDescModal,
+        viewTemplateFields,
+        closeFieldDetailModal,
+        openCreateModal,
+        openEditModal,
+        closeTemplateFormModal,
+        handleExcelUpload,
+        addField,
+        removeField,
+        saveTemplate,
+        deleteTemplate
+    };
+})();
+
+// 将 TemplatesPage 暴露到全局供 onclick 使用
+window.TemplatesPage = TemplatesPage;
+
+// 页面加载完成后初始化
+TemplatesPage.init();
+})();
+</script>

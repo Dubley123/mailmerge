@@ -1,0 +1,399 @@
+/* 已汇总表单页面样式 */
+
+.aggregations-container {
+    padding: 24px;
+    background-color: #F5F6FA;
+    min-height: 100vh;
+}
+
+/* ==================== 顶部工具栏 ==================== */
+.toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    padding: 16px 20px;
+    background: #FFFFFF;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+}
+
+.toolbar-left .page-title {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    color: #333;
+}
+
+.toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.filter-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.filter-select,
+.filter-input {
+    height: 38px;
+    padding: 0 12px;
+    border: 1px solid #D0D4DA;
+    border-radius: 6px;
+    font-size: 14px;
+    color: #333;
+    background-color: #FFFFFF;
+    transition: all 0.2s;
+}
+
+.filter-select {
+    min-width: 150px;
+}
+
+.filter-input {
+    width: 140px;
+    min-width: 160px;
+}
+
+.filter-select:focus,
+.filter-input:focus {
+    outline: none;
+    border-color: #3A7AFE;
+    box-shadow: 0 0 0 3px rgba(58, 122, 254, 0.1);
+}
+
+/* Date input 中文显示支持 */
+.filter-input[type="date"]::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+}
+
+.filter-input[type="date"]:before {
+    content: attr(data-placeholder);
+    color: #9CA3AF;
+}
+
+.filter-input[type="date"]:focus:before,
+.filter-input[type="date"]:valid:before {
+    content: '';
+}
+
+.filter-input[type="date"][data-value]:after {
+    content: attr(data-value);
+    position: absolute;
+    left: 12px;
+    color: #374151;
+}
+
+/* ==================== 按钮样式 ==================== */
+.btn-primary,
+.btn-secondary {
+    height: 38px;
+    padding: 0 16px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-primary {
+    background-color: #3A7AFE;
+    color: #FFFFFF;
+}
+
+.btn-primary:hover {
+    background-color: #2068FF;
+}
+
+.btn-secondary {
+    background-color: #F5F6FA;
+    color: #4A4A4A;
+    border: 1px solid #D0D4DA;
+}
+
+.btn-secondary:hover {
+    background-color: #E5E7EB;
+}
+
+.btn-download {
+    height: 32px;
+    padding: 0 12px;
+    background-color: #3A7AFE;
+    color: #FFFFFF;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.btn-download:hover {
+    background-color: #2068FF;
+}
+
+/* ==================== 加载 & 错误提示 ==================== */
+.loading-indicator {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    background: #FFFFFF;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+    color: #666;
+    font-size: 14px;
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #E5E7EB;
+    border-top-color: #3A7AFE;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-bottom: 16px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.error-message {
+    padding: 16px 20px;
+    background-color: #FFF5F5;
+    border: 1px solid #FEE;
+    border-left: 4px solid #FF4D4F;
+    border-radius: 8px;
+    color: #C53030;
+    font-size: 14px;
+    margin-bottom: 20px;
+}
+
+/* ==================== 表格卡片 ==================== */
+.table-card {
+    background: #FFFFFF;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+    overflow: hidden;
+}
+
+.aggregations-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.aggregations-table thead {
+    background-color: #F9FAFB;
+}
+
+.aggregations-table thead th {
+    padding: 16px 20px;
+    text-align: left;
+    font-weight: 600;
+    color: #374151;
+    border-bottom: 2px solid #E5E7EB;
+}
+
+.aggregations-table thead th.sortable {
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.2s;
+}
+
+.aggregations-table thead th.sortable:hover {
+    background-color: #F0F5FF;
+}
+
+.aggregations-table thead th.sortable.active {
+    color: #3A7AFE;
+}
+
+.sort-icon {
+    margin-left: 4px;
+    font-size: 12px;
+    color: #9CA3AF;
+}
+
+.sortable.active .sort-icon {
+    color: #3A7AFE;
+}
+
+.aggregations-table tbody tr {
+    border-bottom: 1px solid #E5E7EB;
+    transition: background-color 0.2s;
+}
+
+.aggregations-table tbody tr:hover {
+    background-color: #F9FAFB;
+}
+
+.aggregations-table tbody td {
+    padding: 16px 20px;
+    color: #4A4A4A;
+}
+
+/* 列宽度控制 */
+.col-name {
+    width: 30%;
+    font-weight: 500;
+    color: #1F2937;
+}
+
+.col-task {
+    width: 25%;
+}
+
+.col-time {
+    width: 20%;
+}
+
+.col-count {
+    width: 10%;
+}
+
+.col-actions {
+    width: 15%;
+}
+
+/* ==================== 空状态 ==================== */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 80px 20px;
+    color: #9CA3AF;
+}
+
+.empty-state-icon {
+    font-size: 64px;
+    margin-bottom: 16px;
+}
+
+.empty-state-text {
+    font-size: 16px;
+    color: #6B7280;
+}
+
+/* ==================== 分页控件 ==================== */
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 20px;
+    margin-top: 20px;
+}
+
+.pagination-btn {
+    height: 36px;
+    padding: 0 16px;
+    background-color: #FFFFFF;
+    border: 1px solid #D0D4DA;
+    border-radius: 6px;
+    font-size: 14px;
+    color: #4A4A4A;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.pagination-btn:hover:not(:disabled) {
+    background-color: #F0F5FF;
+    border-color: #3A7AFE;
+    color: #3A7AFE;
+}
+
+.pagination-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.page-info {
+    font-size: 14px;
+    color: #4A4A4A;
+}
+
+.page-size-selector {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: #4A4A4A;
+}
+
+.page-size-selector select {
+    height: 36px;
+    padding: 0 8px;
+    border: 1px solid #D0D4DA;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+/* ==================== 响应式设计 ==================== */
+@media (max-width: 1200px) {
+    .toolbar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+    }
+
+    .toolbar-right {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+
+    .filter-group {
+        flex-wrap: wrap;
+    }
+}
+
+@media (max-width: 768px) {
+    .aggregations-container {
+        padding: 16px;
+    }
+
+    .aggregations-table {
+        font-size: 13px;
+    }
+
+    .aggregations-table thead th,
+    .aggregations-table tbody td {
+        padding: 12px 16px;
+    }
+
+    .col-name {
+        width: 35%;
+    }
+
+    .col-task {
+        width: 30%;
+    }
+
+    .col-time,
+    .col-count {
+        display: none;
+    }
+
+    .col-actions {
+        width: 35%;
+    }
+
+    .pagination {
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+}

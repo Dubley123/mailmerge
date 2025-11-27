@@ -1,0 +1,61 @@
+<!-- 左侧导航栏组件 -->
+<aside class="sidebar">
+    <!-- 导航栏头部 -->
+    <div class="sidebar-header">
+        <div class="sidebar-logo">
+            <span class="sidebar-logo-icon">📧</span>
+            <span class="sidebar-logo-text">邮件汇总系统</span>
+        </div>
+    </div>
+
+    <!-- 导航菜单 -->
+    <div class="sidebar-menu">
+        <ul class="sidebar-nav">
+            <li class="sidebar-nav-item">
+                <a href="#" class="sidebar-nav-link active" data-page="dashboard">
+                    <span class="sidebar-nav-icon">📊</span>
+                    <span class="sidebar-nav-text">首页概览</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a href="#" class="sidebar-nav-link" data-page="tasks">
+                    <span class="sidebar-nav-icon">📋</span>
+                    <span class="sidebar-nav-text">任务总览</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a href="#" class="sidebar-nav-link" data-page="templates">
+                    <span class="sidebar-nav-icon">📝</span>
+                    <span class="sidebar-nav-text">表单模板</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a href="#" class="sidebar-nav-link" data-page="aggregations">
+                    <span class="sidebar-nav-icon">📦</span>
+                    <span class="sidebar-nav-text">已汇总表单</span>
+                </a>
+            </li>
+            <li class="sidebar-nav-item">
+                <a href="#" class="sidebar-nav-link" data-page="settings">
+                    <span class="sidebar-nav-icon">⚙️</span>
+                    <span class="sidebar-nav-text">系统设置</span>
+                </a>
+            </li>
+        </ul>
+    </div>
+
+    <!-- 导航栏底部 - 用户信息 -->
+    <div class="sidebar-footer">
+        <div class="sidebar-user">
+            <div class="sidebar-user-avatar">👤</div>
+            <div class="sidebar-user-info">
+                <span class="sidebar-user-name" id="sidebarUserName">用户</span>
+                <span class="sidebar-user-role" id="sidebarUserDept">院系</span>
+            </div>
+        </div>
+    </div>
+</aside>
+
+<script>
+    // 侧边栏初始化完成，用户信息将由主页面的updateUserInfo()更新
+</script>
