@@ -6,6 +6,14 @@
     min-height: 100vh;
 }
 
+/* ==================== 页面标题 ==================== */
+.page-title {
+    margin: 0 0 16px 0;
+    font-size: 24px;
+    font-weight: 600;
+    color: #333;
+}
+
 /* ==================== 顶部工具栏 ==================== */
 .toolbar {
     display: flex;
@@ -18,11 +26,10 @@
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
 }
 
-.toolbar-left .page-title {
-    margin: 0;
-    font-size: 20px;
-    font-weight: 600;
-    color: #333;
+.toolbar-left {
+    display: flex;
+    align-items: center;
+    flex: 1;
 }
 
 .toolbar-right {
@@ -70,6 +77,7 @@
     background-color: #FFFFFF;
     transition: all 0.2s;
     min-width: 160px;
+    position: relative; /* Fix for absolute positioned pseudo-elements */
 }
 
 .filter-input:hover {
@@ -87,22 +95,6 @@
     cursor: pointer;
 }
 
-.filter-input[type="date"]:before {
-    content: attr(data-placeholder);
-    color: #9CA3AF;
-}
-
-.filter-input[type="date"]:focus:before,
-.filter-input[type="date"]:valid:before {
-    content: '';
-}
-
-.filter-input[type="date"][data-value]:after {
-    content: attr(data-value);
-    position: absolute;
-    left: 12px;
-    color: #374151;
-}
 
 /* ==================== 按钮样式 ==================== */
 .btn-primary,
@@ -247,16 +239,21 @@
     color: #1F2937;
 }
 
+.col-created {
+    width: 12%;
+    white-space: nowrap;
+}
+
 .col-time {
-    width: 15%;
+    width: 12%;
 }
 
 .col-template {
-    width: 15%;
+    width: 12%;
 }
 
 .col-count {
-    width: 12%;
+    width: 10%;
 }
 
 .col-status {
@@ -264,7 +261,7 @@
 }
 
 .col-actions {
-    width: 18%;
+    width: 24%;
 }
 
 /* 任务名称可点击样式 */

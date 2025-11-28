@@ -208,3 +208,26 @@ input, textarea, select {
     opacity: 0.6;
     pointer-events: none;
 }
+
+/* 头像样式 */
+.avatar-circle {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    border: 2px solid #E5E7EB;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #FFFFFF;
+    font-size: 28px;
+    font-weight: 600;
+}
+
+.avatar-circle.small {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+

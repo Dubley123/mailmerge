@@ -3,21 +3,21 @@
 
 <div class="aggregations-container">
     <!-- 顶部工具栏 -->
+    <h1 class="page-title">已汇总表单</h1>
     <div class="toolbar">
         <div class="toolbar-left">
-            <h1 class="page-title">已汇总表单</h1>
-        </div>
-        <div class="toolbar-right">
             <!-- 筛选控件 -->
             <div class="filter-group">
-                <select id="taskFilter" class="filter-select">
-                    <option value="">全部任务</option>
-                </select>
+                <span style="font-size: 14px; color: #374151; margin-left: 8px;">汇总时间范围</span>
                 <input type="date" id="startDateFilter" class="filter-input" placeholder="起始时间">
+                <span style="color: #9CA3AF;">—</span>
                 <input type="date" id="endDateFilter" class="filter-input" placeholder="终止时间">
+                <input type="text" id="taskNameFilter" class="filter-input" placeholder="输入任务名称">
                 <button id="filterBtn" class="btn-secondary">筛选</button>
                 <button id="resetFilterBtn" class="btn-secondary">重置</button>
             </div>
+        </div>
+        <div class="toolbar-right">
             <button id="refreshBtn" class="btn-primary">
                 <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
                     <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
@@ -89,7 +89,7 @@
 
 <script>
 (function() {
-    console.log('[Aggregations] 页面脚本开始执行');
+    console.log('[Aggregations] 页面初始化开始');
 
     // ==================== 状态管理 ====================
     const state = {
@@ -99,11 +99,10 @@
         sortBy: 'generated_at',
         sortOrder: 'desc',
         filters: {
-            taskId: null,
+            taskName: '',
             startDate: null,
             endDate: null
-        },
-        tasks: [] // 任务列表（用于筛选下拉框）
+        }
     };
 
     // ==================== DOM 元素 ====================
@@ -118,7 +117,7 @@
         nextPageBtn: document.getElementById('nextPageBtn'),
         pageSizeSelect: document.getElementById('pageSizeSelect'),
         refreshBtn: document.getElementById('refreshBtn'),
-        taskFilter: document.getElementById('taskFilter'),
+        taskNameFilter: document.getElementById('taskNameFilter'),
         startDateFilter: document.getElementById('startDateFilter'),
         endDateFilter: document.getElementById('endDateFilter'),
         filterBtn: document.getElementById('filterBtn'),
@@ -154,6 +153,7 @@
 
     // ==================== API 调用 ====================
     async function fetchAggregations() {
+        console.log('[Aggregations] 列表加载开始');
         showLoading();
         try {
             const params = new URLSearchParams({
@@ -163,8 +163,8 @@
                 sort_order: state.sortOrder
             });
 
-            if (state.filters.taskId) {
-                params.append('task_id', state.filters.taskId);
+            if (state.filters.taskName) {
+                params.append('task_name', state.filters.taskName);
             }
             if (state.filters.startDate) {
                 params.append('start_date', state.filters.startDate);
@@ -177,34 +177,20 @@
             hideLoading();
 
             if (result.success) {
-                // CommonAPI包装后: result.data = {data: [...], total: 10}
                 state.total = result.data.total;
                 renderTable(result.data.data);
                 updatePagination();
+                console.log('[Aggregations] 列表加载完成');
             } else {
                 showError(result.error || '获取汇总表列表失败');
             }
         } catch (error) {
-            console.error('[Aggregations] 获取列表失败:', error);
             showError('网络错误，请稍后重试');
-        }
-    }
-
-    async function fetchTasks() {
-        try {
-            const result = await CommonAPI.get('/api/tasks/list');
-            if (result.success) {
-                state.tasks = result.data;
-                renderTaskFilter();
-            }
-        } catch (error) {
-            console.error('[Aggregations] 获取任务列表失败:', error);
         }
     }
 
     async function downloadAggregation(aggregationId, filename) {
         try {
-            // 使用 fetch 带认证信息下载文件
             const token = localStorage.getItem('mailmerge_token');
             if (!token) {
                 alert('请先登录');
@@ -226,17 +212,14 @@
                 throw new Error('下载失败');
             }
 
-            // 获取文件名（从响应头）
             const contentDisposition = response.headers.get('content-disposition');
             let downloadFilename = 'aggregation.xlsx';
             
             if (contentDisposition) {
-                // 支持 RFC 5987 编码的文件名 (filename*=UTF-8''...)
                 const filenameStarMatch = /filename\*=UTF-8''(.+)/.exec(contentDisposition);
                 if (filenameStarMatch) {
                     downloadFilename = decodeURIComponent(filenameStarMatch[1]);
                 } else {
-                    // 传统格式 (filename="...")
                     const filenameMatch = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(contentDisposition);
                     if (filenameMatch && filenameMatch[1]) {
                         downloadFilename = filenameMatch[1].replace(/['"]/g, '');
@@ -244,7 +227,6 @@
                 }
             }
 
-            // 创建 Blob 并下载
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -256,19 +238,11 @@
             window.URL.revokeObjectURL(url);
             document.body.removeChild(a);
         } catch (error) {
-            console.error('[Aggregations] 下载失败:', error);
             alert('下载失败，请稍后重试');
         }
     }
 
     // ==================== 渲染函数 ====================
-    function renderTaskFilter() {
-        const options = state.tasks.map(task => 
-            `<option value="${task.id}">${task.name}</option>`
-        ).join('');
-        elements.taskFilter.innerHTML = `<option value="">全部任务</option>${options}`;
-    }
-
     function renderTable(aggregations) {
         if (aggregations.length === 0) {
             elements.tableBody.innerHTML = '';
@@ -351,7 +325,7 @@
     }
 
     function handleFilter() {
-        state.filters.taskId = elements.taskFilter.value || null;
+        state.filters.taskName = elements.taskNameFilter.value.trim();
         state.filters.startDate = elements.startDateFilter.value || null;
         state.filters.endDate = elements.endDateFilter.value || null;
         state.currentPage = 1;
@@ -359,11 +333,11 @@
     }
 
     function handleResetFilter() {
-        elements.taskFilter.value = '';
+        elements.taskNameFilter.value = '';
         elements.startDateFilter.value = '';
         elements.endDateFilter.value = '';
         state.filters = {
-            taskId: null,
+            taskName: '',
             startDate: null,
             endDate: null
         };
@@ -375,6 +349,14 @@
     elements.refreshBtn.addEventListener('click', () => fetchAggregations());
     elements.filterBtn.addEventListener('click', handleFilter);
     elements.resetFilterBtn.addEventListener('click', handleResetFilter);
+    if (elements.taskNameFilter) {
+        elements.taskNameFilter.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                handleFilter();
+            }
+        });
+    }
     elements.prevPageBtn.addEventListener('click', () => {
         if (state.currentPage > 1) {
             state.currentPage--;
@@ -402,38 +384,6 @@
         });
     });
 
-    // 设置date input的中文placeholder
-    setupDateInputs();
-
-    // ==================== Date Input 设置 ====================
-    function setupDateInputs() {
-        const startDateInput = elements.startDateFilter;
-        const endDateInput = elements.endDateFilter;
-        
-        // 设置中文placeholder
-        if (startDateInput && !startDateInput.value) {
-            startDateInput.setAttribute('data-placeholder', '起始时间（年-月-日）');
-        }
-        if (endDateInput && !endDateInput.value) {
-            endDateInput.setAttribute('data-placeholder', '终止时间（年-月-日）');
-        }
-        
-        // 监听变化以更新显示格式
-        [startDateInput, endDateInput].forEach(input => {
-            if (input) {
-                input.addEventListener('change', function() {
-                    if (this.value) {
-                        // 将YYYY-MM-DD转换为YYYY年MM月DD日显示
-                        const date = new Date(this.value);
-                        const year = date.getFullYear();
-                        const month = String(date.getMonth() + 1).padStart(2, '0');
-                        const day = String(date.getDate()).padStart(2, '0');
-                        this.setAttribute('data-value', `${year}年${month}月${day}日`);
-                    }
-                });
-            }
-        });
-    }
 
     // ==================== 导出全局函数 ====================
     window.aggregationsPage = {
@@ -442,20 +392,13 @@
 
     // ==================== 初始化 ====================
     (async function init() {
-        console.log('[Aggregations] 初始化开始');
-        
-        // 等待 CommonAPI 加载
         if (typeof CommonAPI === 'undefined') {
             await new Promise(resolve => setTimeout(resolve, 300));
         }
 
-        // 加载任务列表（用于筛选）
-        await fetchTasks();
-
-        // 加载汇总表列表
         await fetchAggregations();
 
-        console.log('[Aggregations] 初始化完成');
+        console.log('[Aggregations] 页面初始化完成');
     })();
 })();
 </script>

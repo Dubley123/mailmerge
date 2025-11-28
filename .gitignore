@@ -41,6 +41,7 @@ env/
 Thumbs.db
 
 # Logs
+logs/
 *.log
 
 # Database

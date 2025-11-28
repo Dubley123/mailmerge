@@ -1,47 +1,539 @@
-<!-- 系统设置 - 占位页面 -->
-<div class="page-container">
-    <div class="card" style="padding: 24px; max-width: 600px;">
-        <h3 style="font-size: 18px; margin-bottom: 20px; color: var(--text-primary);">
-            个人信息
-        </h3>
-        
-        <div style="margin-bottom: 16px;">
-            <div style="color: var(--text-secondary); font-size: 13px; margin-bottom: 4px;">姓名</div>
-            <div style="color: var(--text-primary);" id="settingUserName">-</div>
+<!-- 系统设置页面 -->
+<!-- 引入系统设置专用样式 -->
+<link rel="stylesheet" href="/frontend/static/css/settings.css">
+
+<div class="settings-page">
+    <!-- 页面标题 -->
+    <div class="settings-header">
+        <h2 class="settings-title">系统设置</h2>
+        <p class="settings-subtitle">管理您的个人账户信息和密码</p>
+    </div>
+
+    <!-- 设置卡片容器 -->
+    <div class="settings-container">
+        <!-- 个人信息卡片（展示模式） -->
+        <div class="settings-card">
+            <div class="card-header">
+                <div class="header-left">
+                    <h3 class="card-title">👤 个人信息</h3>
+                    <p class="card-description">查看和修改您的基本信息</p>
+                </div>
+                <div class="header-action">
+                    <button type="button" class="btn btn-primary" id="editProfileBtn">
+                        <span>✏️ 修改</span>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="info-display" id="profileDisplay">
+                <!-- 信息项将通过 JavaScript 动态加载 -->
+            </div>
+        </div>
+
+        <!-- 修改密码卡片 -->
+        <div class="settings-card">
+            <div class="card-header">
+                <div class="header-left">
+                    <h3 class="card-title">🔒 安全设置</h3>
+                    <p class="card-description">修改登录密码和安全选项</p>
+                </div>
+            </div>
+            
+            <form id="passwordForm" class="settings-form">
+                <div class="form-row">
+                    <div class="form-group form-group-full">
+                        <label for="oldPassword" class="form-label">当前密码 <span class="required">*</span></label>
+                        <input type="password" id="oldPassword" name="oldPassword" class="form-input" required placeholder="请输入您的当前密码">
+                    </div>
+                </div>
+                
+                <div class="form-divider"></div>
+                
+                <div class="form-row">
+                    <div class="form-group form-group-full">
+                        <label for="newPassword" class="form-label">新密码 <span class="required">*</span></label>
+                        <div class="password-input-wrapper">
+                            <input type="password" id="newPassword" name="newPassword" class="form-input" required minlength="6" placeholder="请输入新密码（至少6个字符）">
+                            <button type="button" class="password-toggle" data-target="newPassword">👁</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group form-group-full">
+                        <label for="confirmPassword" class="form-label">确认新密码 <span class="required">*</span></label>
+                        <div class="password-input-wrapper">
+                            <input type="password" id="confirmPassword" name="confirmPassword" class="form-input" required placeholder="请再次输入新密码">
+                            <button type="button" class="password-toggle" data-target="confirmPassword">👁</button>
+                        </div>
+                        <span class="form-hint" id="passwordMismatchHint" style="color: var(--danger); display: none;">⚠️ 两次输入的密码不一致</span>
+                    </div>
+                </div>
+                
+                <div class="password-strength" id="passwordStrength"></div>
+                
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary" id="changePasswordBtn">
+                        <span>🔄 修改密码</span>
+                    </button>
+                    <div class="form-status" id="passwordStatus"></div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 编辑个人信息模态框 -->
+<div class="modal-overlay" id="editProfileModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>编辑个人信息</h2>
+            <button type="button" class="modal-close-btn" id="closeModalBtn">✕</button>
         </div>
         
-        <div style="margin-bottom: 16px;">
-            <div style="color: var(--text-secondary); font-size: 13px; margin-bottom: 4px;">所属院系</div>
-            <div style="color: var(--text-primary);" id="settingUserDept">-</div>
-        </div>
+        <form id="editProfileForm" class="modal-body">
+            <div class="form-row">
+                <div class="form-group form-group-half">
+                    <label for="editName" class="form-label">姓名</label>
+                    <input type="text" id="editName" name="name" class="form-input" readonly>
+                </div>
+                
+                <div class="form-group form-group-half">
+                    <label for="editUsername" class="form-label">用户名 <span class="required">*</span></label>
+                    <input type="text" id="editUsername" name="username" class="form-input" required placeholder="请输入用户名">
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group form-group-half">
+                    <label for="editAccount" class="form-label">账号</label>
+                    <input type="text" id="editAccount" name="account" class="form-input" readonly>
+                </div>
+                
+                <div class="form-group form-group-half">
+                    <label for="editDepartment" class="form-label">所属院系</label>
+                    <input type="text" id="editDepartment" name="department" class="form-input" readonly>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group form-group-half">
+                    <label for="editEmail" class="form-label">邮箱 <span class="required">*</span></label>
+                    <input type="email" id="editEmail" name="email" class="form-input" required placeholder="请输入有效的邮箱地址">
+                </div>
+                
+                <div class="form-group form-group-half">
+                    <label for="editPhone" class="form-label">手机号</label>
+                    <input type="tel" id="editPhone" name="phone" class="form-input" placeholder="请输入手机号码">
+                </div>
+            </div>
+        </form>
         
-        <div style="margin-bottom: 16px;">
-            <div style="color: var(--text-secondary); font-size: 13px; margin-bottom: 4px;">邮箱</div>
-            <div style="color: var(--text-primary);" id="settingUserEmail">-</div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" id="cancelEditBtn">取消</button>
+            <button type="button" class="btn btn-primary" id="submitEditBtn">保存更改</button>
         </div>
-        
-        <div style="margin-bottom: 16px;">
-            <div style="color: var(--text-secondary); font-size: 13px; margin-bottom: 4px;">手机号</div>
-            <div style="color: var(--text-primary);" id="settingUserPhone">-</div>
+    </div>
+</div>
+
+<!-- 消息弹窗 -->
+<div class="message-dialog" id="messageDialog">
+    <div class="message-dialog-content">
+        <div class="message-dialog-header" id="messageHeader">
+            <span class="message-dialog-icon" id="messageIcon"></span>
+            <span id="messageTitle"></span>
         </div>
-        
-        <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border-color);">
-            <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 12px;">
-                更多设置功能（如修改密码、邮箱配置等）将在后续开发中实现
-            </p>
+        <div class="message-dialog-body" id="messageBody"></div>
+        <div class="message-dialog-footer">
+            <button type="button" class="btn btn-primary" id="messageConfirmBtn">确定</button>
         </div>
     </div>
 </div>
 
 <script>
-    // 显示用户信息
-    (function() {
-        const user = Utils.getUser();
-        if (user) {
-            document.getElementById('settingUserName').textContent = user.name || '-';
-            document.getElementById('settingUserDept').textContent = user.department || '-';
-            document.getElementById('settingUserEmail').textContent = user.email || '未设置';
-            document.getElementById('settingUserPhone').textContent = user.phone || '未设置';
+// 显示消息弹窗
+function showMessageDialog(message, type = 'success', title = null) {
+    const dialog = document.getElementById('messageDialog');
+    const header = document.getElementById('messageHeader');
+    const icon = document.getElementById('messageIcon');
+    const titleEl = document.getElementById('messageTitle');
+    const body = document.getElementById('messageBody');
+    const confirmBtn = document.getElementById('messageConfirmBtn');
+    
+    // 清除之前的类型样式
+    header.classList.remove('success', 'error', 'warning');
+    header.classList.add(type);
+    
+    // 设置图标和标题
+    const config = {
+        success: { icon: '✅', title: title || '成功' },
+        error: { icon: '❌', title: title || '错误' },
+        warning: { icon: '⚠️', title: title || '警告' }
+    };
+    
+    icon.textContent = config[type].icon;
+    titleEl.textContent = config[type].title;
+    body.textContent = message;
+    
+    // 显示弹窗
+    dialog.classList.add('active');
+    
+    // 绑定关闭事件
+    const closeDialog = () => {
+        dialog.classList.remove('active');
+        confirmBtn.removeEventListener('click', closeDialog);
+        dialog.removeEventListener('click', outsideClickHandler);
+    };
+    
+    const outsideClickHandler = (e) => {
+        if (e.target === dialog) {
+            closeDialog();
         }
-    })();
+    };
+    
+    confirmBtn.addEventListener('click', closeDialog);
+    dialog.addEventListener('click', outsideClickHandler);
+}
+
+// 初始化设置页面
+function initSettings() {
+    console.log('[Settings] 页面初始化开始');
+    
+    // 加载用户信息
+    loadUserProfile();
+    
+    // 绑定事件
+    bindEditProfileEvents();
+    bindPasswordFormEvents();
+    bindPasswordToggle();
+    bindModalEvents();
+    
+    console.log('[Settings] 页面初始化完成');
+}
+
+// 使用微任务队列确保DOM完全就绪
+Promise.resolve().then(() => {
+    initSettings();
+});
+
+async function loadUserProfile() {
+    console.log('[Settings] 用户信息加载开始');
+    try {
+        const response = await API.get('/api/auth/me');
+        
+        if (response.success) {
+            const user = response.data.data || response.data;
+            displayUserProfile(user);
+            fillEditForm(user);
+            console.log('[Settings] 用户信息加载完成');
+        } else {
+            showMessageDialog('加载用户信息失败', 'error');
+        }
+    } catch (error) {
+        showMessageDialog('加载用户信息失败，请刷新重试', 'error');
+    }
+}
+
+function displayUserProfile(user) {
+    const profileDisplay = document.getElementById('profileDisplay');
+    
+    if (!profileDisplay || !user) {
+        profileDisplay.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">无法加载用户信息</div>';
+        return;
+    }
+    
+    profileDisplay.innerHTML = `
+        <div class="info-item">
+            <span class="info-label">姓名：</span>
+            <span class="info-value">${user.name || '-'}</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">工号：</span>
+            <span class="info-value">${user.id || '-'}</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">用户名：</span>
+            <span class="info-value">${user.username || '-'}</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">账号：</span>
+            <span class="info-value">${user.account || '-'}</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">所属院系：</span>
+            <span class="info-value">${user.department || '-'}</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">邮箱：</span>
+            <span class="info-value">${user.email || '-'}</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">电话：</span>
+            <span class="info-value">${user.phone || '-'}</span>
+        </div>
+    `;
+}
+
+function fillEditForm(user) {
+    if (!user) return;
+    
+    const editName = document.getElementById('editName');
+    const editUsername = document.getElementById('editUsername');
+    const editAccount = document.getElementById('editAccount');
+    const editEmail = document.getElementById('editEmail');
+    const editPhone = document.getElementById('editPhone');
+    const editDepartment = document.getElementById('editDepartment');
+    
+    if (editName) editName.value = user.name || '';
+    if (editUsername) editUsername.value = user.username || '';
+    if (editAccount) editAccount.value = user.account  || '';
+    if (editEmail) editEmail.value = user.email || '';
+    if (editPhone) editPhone.value = user.phone || '';
+    if (editDepartment) editDepartment.value = user.department || '';
+}
+
+function bindEditProfileEvents() {
+    const editBtn = document.getElementById('editProfileBtn');
+    
+    if (editBtn) {
+        editBtn.addEventListener('click', function(e) {
+            openEditModal();
+        });
+    }
+}
+
+function openEditModal() {
+    const modal = document.getElementById('editProfileModal');
+    if (modal) {
+        modal.classList.add('active');
+    }
+}
+
+function closeEditModal() {
+    const modal = document.getElementById('editProfileModal');
+    if (modal) {
+        modal.classList.remove('active');
+    }
+}
+
+function bindModalEvents() {
+    // 关闭按钮
+    const closeBtn = document.getElementById('closeModalBtn');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeEditModal);
+    }
+    
+    // 取消按钮
+    const cancelBtn = document.getElementById('cancelEditBtn');
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', closeEditModal);
+    }
+    
+    // 点击覆盖层关闭
+    const modal = document.getElementById('editProfileModal');
+    if (modal) {
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                closeEditModal();
+            }
+        });
+    }
+    
+    // 提交按钮
+    const submitBtn = document.getElementById('submitEditBtn');
+    if (submitBtn) {
+        submitBtn.addEventListener('click', submitEditProfile);
+    }
+}
+
+async function submitEditProfile() {
+    const username = document.getElementById('editUsername').value.trim();
+    const email = document.getElementById('editEmail').value.trim();
+    const phone = document.getElementById('editPhone').value.trim();
+    
+    // 验证邮箱格式
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        showMessageDialog('请输入有效的邮箱地址', 'error');
+        return;
+    }
+    
+    // 验证用户名
+    if (username.length === 0) {
+        showMessageDialog('请输入用户名', 'error');
+        return;
+    }
+    
+    try {
+        const response = await API.put('/api/settings/profile', {
+            username: username,
+            email: email,
+            phone: phone || null
+        });
+        
+        if (response.success) {
+            showMessageDialog('个人信息更新成功', 'success');
+
+            const responseData = response.data;
+            const user = responseData && (responseData.data || responseData) || null;
+            if (user) displayUserProfile(user);
+
+            const currentUser = Utils.getUser();
+            if (currentUser) {
+                currentUser.username = username;
+                currentUser.email = email;
+                currentUser.phone = phone;
+                Utils.saveUser(currentUser);
+                updatePageUserDisplay();
+            }
+
+            closeEditModal();
+        } else {
+            const errMsg = (response && (response.data?.message || response.data?.detail || response.message || response.error)) || '更新失败';
+            showMessageDialog(errMsg, 'error');
+        }
+    } catch (error) {
+        showMessageDialog('更新失败，请重试', 'error');
+    }
+}
+
+function bindPasswordFormEvents() {
+    const passwordForm = document.getElementById('passwordForm');
+    if (passwordForm) {
+        // 实时检查新密码强度
+        const newPassword = document.getElementById('newPassword');
+        if (newPassword) {
+            newPassword.addEventListener('input', checkPasswordStrength);
+        }
+        
+        // 实时检查密码匹配
+        const confirmPassword = document.getElementById('confirmPassword');
+        const passwordMismatchHint = document.getElementById('passwordMismatchHint');
+        if (confirmPassword && passwordMismatchHint) {
+            confirmPassword.addEventListener('input', () => {
+                const newPwd = document.getElementById('newPassword').value;
+                const confirmPwd = confirmPassword.value;
+                
+                if (confirmPwd.length > 0 && newPwd !== confirmPwd) {
+                    passwordMismatchHint.style.display = 'block';
+                } else {
+                    passwordMismatchHint.style.display = 'none';
+                }
+            });
+        }
+        
+        // 提交表单
+        passwordForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const oldPassword = document.getElementById('oldPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            
+            // 验证新密码
+            if (newPassword.length < 6) {
+                showMessageDialog('新密码至少需要6个字符', 'error');
+                return;
+            }
+            
+            if (newPassword !== confirmPassword) {
+                showMessageDialog('两次输入的新密码不一致', 'error');
+                return;
+            }
+            
+            if (oldPassword === newPassword) {
+                showMessageDialog('新密码不能与当前密码相同', 'error');
+                return;
+            }
+            
+            try {
+                const response = await API.post('/api/settings/password', {
+                    old_password: oldPassword,
+                    new_password: newPassword
+                });
+                
+                if (response.success) {
+                    showMessageDialog('密码修改成功', 'success');
+                    passwordForm.reset();
+                    document.getElementById('passwordStrength').innerHTML = '';
+                } else {
+                    const errMsg = (response && (response.data?.message || response.data?.detail || response.message || response.error)) || '密码修改失败';
+                    showMessageDialog(errMsg, 'error');
+                }
+            } catch (error) {
+                showMessageDialog('修改失败，请重试', 'error');
+            }
+        });
+    }
+}
+
+function bindPasswordToggle() {
+    const toggleButtons = document.querySelectorAll('.password-toggle');
+    toggleButtons.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const targetId = btn.dataset.target;
+            const input = document.getElementById(targetId);
+            if (input.type === 'password') {
+                input.type = 'text';
+                btn.textContent = '👁‍🗨';
+            } else {
+                input.type = 'password';
+                btn.textContent = '👁';
+            }
+        });
+    });
+}
+
+function checkPasswordStrength() {
+    const password = document.getElementById('newPassword').value;
+    const strengthContainer = document.getElementById('passwordStrength');
+    
+    if (!password) {
+        strengthContainer.innerHTML = '';
+        return;
+    }
+    
+    let strength = 0;
+    let strengthText = '弱';
+    let strengthColor = '#ef4444';
+    
+    if (password.length >= 8) strength++;
+    if (/[a-z]/.test(password)) strength++;
+    if (/[A-Z]/.test(password)) strength++;
+    if (/[0-9]/.test(password)) strength++;
+    if (/[!@#$%^&*]/.test(password)) strength++;
+    
+    if (strength >= 4) {
+        strengthText = '强';
+        strengthColor = '#10b981';
+    } else if (strength >= 2) {
+        strengthText = '中等';
+        strengthColor = '#f59e0b';
+    }
+    
+    strengthContainer.innerHTML = `
+        <div class="strength-bar">
+            <div class="strength-fill" style="width: ${(strength / 5) * 100}%; background-color: ${strengthColor}"></div>
+        </div>
+        <span class="strength-text" style="color: ${strengthColor}">密码强度：${strengthText}</span>
+    `;
+}
+
+function updatePageUserDisplay() {
+    // 更新页面上的用户信息显示
+    const user = Utils.getUser();
+    if (user) {
+        // 更新header
+        const headerName = document.getElementById('headerUserName');
+        if (headerName) headerName.textContent = user.name || '用户';
+        
+        // 更新sidebar
+        const sidebarName = document.getElementById('sidebarUserName');
+        if (sidebarName) sidebarName.textContent = user.name || '用户';
+        
+        const sidebarDept = document.getElementById('sidebarUserDept');
+        if (sidebarDept) sidebarDept.textContent = user.department || '院系';
+    }
+}
 </script>

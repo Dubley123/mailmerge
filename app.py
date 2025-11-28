@@ -12,7 +12,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from backend.storage_service import ensure_minio_running
 from backend.database.reset_db import reset_database
 from backend.database.set_default import set_default
-from backend.api import auth, dashboard, emails, tasks, teachers, templates, aggregations
+from backend.api import auth, dashboard, emails, tasks, teachers, templates, aggregations, settings
 
 def main():
     # 1. Check for --reset and/or --set-default
@@ -76,6 +76,7 @@ def main():
     app.include_router(teachers.router, prefix="/api/teachers", tags=["Teachers"])
     app.include_router(templates.router, prefix="/api/templates", tags=["Templates"])
     app.include_router(aggregations.router, prefix="/api/aggregations", tags=["Aggregations"])
+    app.include_router(settings.router, prefix="/api/settings", tags=["Settings"])
 
     # 5. Mount Frontend
     frontend_path = os.path.join(os.path.dirname(__file__), "frontend")

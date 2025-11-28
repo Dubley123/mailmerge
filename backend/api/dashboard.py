@@ -30,6 +30,7 @@ class PersonalInfo(BaseModel):
     email: str
     phone: Optional[str] = None
     username: str
+    account: str
 
 
 class TaskStats(BaseModel):
@@ -89,7 +90,8 @@ async def get_dashboard_overview(
         department_name=department.name if department else "未知院系",
         email=secretary.email,
         phone=secretary.phone,
-        username=secretary.username
+        username=secretary.username,
+        account=secretary.account
     )
 
     # 2. 获取任务统计

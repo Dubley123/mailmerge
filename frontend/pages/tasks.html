@@ -7,14 +7,16 @@
 <script src="/frontend/static/js/api/tasks.js?v=4"></script>
 
 <div class="tasks-container">
+    <h1 class="page-title">任务总览</h1>
     <!-- 顶部工具栏 -->
     <div class="toolbar">
         <div class="toolbar-left">
-            <h1 class="page-title">任务总览</h1>
-        </div>
-        <div class="toolbar-right">
             <!-- 筛选控件 -->
-            <div class="filter-group" style="display: inline-flex; gap: 8px; margin-right: 16px;">
+            <div class="filter-group" style="display: inline-flex; gap: 8px;">
+                <span style="font-size: 14px; color: #374151; margin-left: 8px;">创建时间范围</span>
+                <input type="date" id="startDateFilter" class="filter-input" placeholder="起始时间">
+                <span style="color: #9CA3AF;">—</span>
+                <input type="date" id="endDateFilter" class="filter-input" placeholder="终止时间">
                 <select id="statusFilter" class="filter-select">
                     <option value="">全部状态</option>
                     <option value="DRAFT">未发布</option>
@@ -22,11 +24,12 @@
                     <option value="EXPIRED">超时未关闭</option>
                     <option value="CLOSED">已关闭</option>
                 </select>
-                <input type="date" id="startDateFilter" class="filter-input" placeholder="起始时间">
-                <input type="date" id="endDateFilter" class="filter-input" placeholder="终止时间">
+                <input type="text" id="taskNameFilter" class="filter-input" placeholder="输入任务名称">
                 <button id="filterBtn" class="btn-secondary">筛选</button>
                 <button id="resetFilterBtn" class="btn-secondary">重置</button>
             </div>
+        </div>
+        <div class="toolbar-right">
             <button class="btn-primary" onclick="TasksPage.openCreateModal()">
                 <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
                     <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/>
@@ -43,6 +46,10 @@
                 <tr>
                     <th class="col-name sortable" data-sort="name">
                         任务名称
+                        <span class="sort-icon">⇅</span>
+                    </th>
+                    <th class="col-created sortable" data-sort="created_at">
+                        创建时间
                         <span class="sort-icon">⇅</span>
                     </th>
                     <th class="col-time sortable" data-sort="started_time">
@@ -64,7 +71,7 @@
             </thead>
             <tbody id="tasksTableBody">
                 <tr>
-                    <td colspan="7" class="loading-state">加载中...</td>
+                    <td colspan="8" class="loading-state">加载中...</td>
                 </tr>
             </tbody>
         </table>
@@ -220,7 +227,6 @@
             </form>
         </div>
         <div class="modal-footer">
-            <button class="btn-secondary" onclick="TasksPage.closeFormModal()">取消</button>
             <button class="btn-secondary" id="btnPrev" onclick="TasksPage.prevStep()" style="display: none;">上一步</button>
             <button class="btn-primary" id="btnNext" onclick="TasksPage.nextStep()">下一步</button>
             <button class="btn-primary" id="btnSubmit" onclick="TasksPage.submitTask()" style="display: none;">完成</button>
@@ -239,23 +245,27 @@
         allTeachers: [],
         selectedTeacherIds: new Set(), // 记录选中的教师ID
         allTemplates: [],
-    allTasks: [],
-    filteredTasks: [],
-    sortBy: 'deadline',
-    sortOrder: 'desc',
-    filters: {
-        status: '',
-        startDate: '',
-        endDate: ''
-    },        // 初始化页面
+        allTasks: [],
+        filteredTasks: [],
+        sortBy: 'deadline',
+        sortOrder: 'desc',
+        filters: {
+            status: '',
+            createdStart: '',
+            createdEnd: '',
+            keyword: ''
+        },
+        // 初始化页面
         async init() {
+            console.log('[Tasks] 页面初始化开始');
             try {
                 await this.loadTasks();
                 await this.loadTemplates();
                 await this.loadTeachers();
                 this.bindEvents();
+                console.log('[Tasks] 页面初始化完成');
             } catch (error) {
-                console.error('TasksPage initialization error:', error);
+                // 初始化失败时页面会显示错误状态
             }
         },
 
@@ -290,6 +300,16 @@
             this.filterTeachers(e.target.value);
         });
 
+        const taskNameInput = document.getElementById('taskNameFilter');
+        if (taskNameInput) {
+            taskNameInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    this.applyFilters();
+                }
+            });
+        }
+
         // 筛选按钮
         document.getElementById('filterBtn').addEventListener('click', () => {
             this.applyFilters();
@@ -299,17 +319,15 @@
         document.getElementById('resetFilterBtn').addEventListener('click', () => {
             this.resetFilters();
         });
-
-        // Date input placeholder修改
-        this.setupDateInputs();
     },
 
     // 加载任务列表
     async loadTasks() {
+        console.log('[Tasks] 任务列表加载开始');
         const tbody = document.getElementById('tasksTableBody');
         tbody.innerHTML = `
             <tr>
-                <td colspan="7" style="padding: 0; border: none;">
+                <td colspan="8" style="padding: 0; border: none;">
                     <div class="loading-state">
                         <div class="loading-spinner"></div>
                         <div>加载中...</div>
@@ -326,7 +344,7 @@
             } else {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="7" style="padding: 0; border: none;">
+                        <td colspan="8" style="padding: 0; border: none;">
                             <div class="empty-state">
                                 <div class="empty-state-icon">⚠️</div>
                                 <div class="empty-state-text">${result.message || '加载失败'}</div>
@@ -335,11 +353,11 @@
                     </tr>
                 `;
             }
+            console.log('[Tasks] 任务列表加载完成');
         } catch (error) {
-            console.error('加载任务异常:', error);
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="7" style="padding: 0; border: none;">
+                    <td colspan="8" style="padding: 0; border: none;">
                         <div class="empty-state">
                             <div class="empty-state-icon">⚠️</div>
                             <div class="empty-state-text">加载任务时发生错误</div>
@@ -350,68 +368,54 @@
         }
     },
 
-    // 设置date input的中文placeholder
-    setupDateInputs() {
-        const startDateInput = document.getElementById('startDateFilter');
-        const endDateInput = document.getElementById('endDateFilter');
-        
-        // 设置中文placeholder
-        if (startDateInput && !startDateInput.value) {
-            startDateInput.setAttribute('data-placeholder', '起始时间（年-月-日）');
-        }
-        if (endDateInput && !endDateInput.value) {
-            endDateInput.setAttribute('data-placeholder', '终止时间（年-月-日）');
-        }
-        
-        // 监听变化以更新显示格式
-        [startDateInput, endDateInput].forEach(input => {
-            if (input) {
-                input.addEventListener('change', function() {
-                    if (this.value) {
-                        // 将YYYY-MM-DD转换为YYYY年MM月DD日显示
-                        const date = new Date(this.value);
-                        const year = date.getFullYear();
-                        const month = String(date.getMonth() + 1).padStart(2, '0');
-                        const day = String(date.getDate()).padStart(2, '0');
-                        this.setAttribute('data-value', `${year}年${month}月${day}日`);
-                    }
-                });
-            }
-        });
-    },
 
     // 应用筛选
     applyFilters() {
         this.filters.status = document.getElementById('statusFilter').value;
-        this.filters.startDate = document.getElementById('startDateFilter').value;
-        this.filters.endDate = document.getElementById('endDateFilter').value;
-        
-        // 筛选任务
+        this.filters.createdStart = document.getElementById('startDateFilter').value;
+        this.filters.createdEnd = document.getElementById('endDateFilter').value;
+        this.filters.keyword = document.getElementById('taskNameFilter').value.trim().toLowerCase();
+
+        const hasFilters = Boolean(
+            this.filters.status ||
+            this.filters.createdStart ||
+            this.filters.createdEnd ||
+            this.filters.keyword
+        );
+
+        if (!hasFilters) {
+            this.filteredTasks = [];
+            this.sortAndRenderTasks();
+            return;
+        }
+
         this.filteredTasks = this.allTasks.filter(task => {
-            // 状态筛选
             if (this.filters.status && task.status !== this.filters.status) {
                 return false;
             }
-            
-            // 起始时间筛选
-            if (this.filters.startDate && task.started_time) {
-                const taskDate = new Date(task.started_time).toISOString().split('T')[0];
-                if (taskDate < this.filters.startDate) {
+
+            const createdDate = task.created_at
+                ? new Date(task.created_at).toISOString().split('T')[0]
+                : '';
+
+            if (this.filters.createdStart && (!createdDate || createdDate < this.filters.createdStart)) {
+                return false;
+            }
+
+            if (this.filters.createdEnd && (!createdDate || createdDate > this.filters.createdEnd)) {
+                return false;
+            }
+
+            if (this.filters.keyword) {
+                const taskName = (task.name || '').toLowerCase();
+                if (!taskName.includes(this.filters.keyword)) {
                     return false;
                 }
             }
-            
-            // 终止时间筛选
-            if (this.filters.endDate && task.deadline) {
-                const taskDate = new Date(task.deadline).toISOString().split('T')[0];
-                if (taskDate > this.filters.endDate) {
-                    return false;
-                }
-            }
-            
+
             return true;
         });
-        
+
         this.sortAndRenderTasks();
     },
 
@@ -420,10 +424,12 @@
         document.getElementById('statusFilter').value = '';
         document.getElementById('startDateFilter').value = '';
         document.getElementById('endDateFilter').value = '';
+        document.getElementById('taskNameFilter').value = '';
         this.filters = {
             status: '',
-            startDate: '',
-            endDate: ''
+            createdStart: '',
+            createdEnd: '',
+            keyword: ''
         };
         this.filteredTasks = [];
         this.sortAndRenderTasks();
@@ -431,10 +437,15 @@
 
     // 排序并渲染任务
     sortAndRenderTasks() {
-        const tasksToSort = this.filteredTasks.length > 0 || this.filters.status || this.filters.startDate || this.filters.endDate 
-            ? this.filteredTasks 
-            : this.allTasks;
-        
+        const hasFilters = Boolean(
+            this.filters.status ||
+            this.filters.createdStart ||
+            this.filters.createdEnd ||
+            this.filters.keyword
+        );
+
+        const tasksToSort = hasFilters ? this.filteredTasks : this.allTasks;
+
         const sorted = [...tasksToSort].sort((a, b) => {
             let aVal = a[this.sortBy];
             let bVal = b[this.sortBy];
@@ -495,7 +506,7 @@
         if (tasks.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="7" style="padding: 0; border: none;">
+                    <td colspan="8" style="padding: 0; border: none;">
                         <div class="empty-state">
                             <div class="empty-state-icon">📋</div>
                             <div class="empty-state-text">暂无任务，点击右上角创建新任务</div>
@@ -524,6 +535,7 @@
             return `
                 <tr>
                     <td class="col-name"><a href="#" class="task-name-link" onclick="TasksPage.showDescription(${task.id}, '${task.name}'); return false;">${task.name}</a></td>
+                    <td class="col-created">${task.created_at ? Utils.formatDateTime(task.created_at) : '-'}</td>
                     <td class="col-time">${task.started_time ? Utils.formatDateTime(task.started_time) : '-'}</td>
                     <td class="col-time">${task.deadline ? Utils.formatDateTime(task.deadline) : '-'}</td>
                     <td class="col-template">${task.template_name}</td>
@@ -544,7 +556,7 @@
             buttons.push(`<button class="btn-secondary btn-sm" onclick="TasksPage.editTask(${task.id})">编辑</button>`);
         } else if (task.status === 'ACTIVE' || task.status === 'EXPIRED') {
             buttons.push(`<button class="btn-warning btn-sm" onclick="TasksPage.remindTeachers(${task.id})">一键催促</button>`);
-            buttons.push(`<button class="btn-danger btn-sm" onclick="TasksPage.closeTask(${task.id})">提前关闭</button>`);
+            buttons.push(`<button class="btn-danger btn-sm" onclick="TasksPage.closeTask(${task.id})">关闭任务</button>`);
         } else if (task.status === 'CLOSED') {
             buttons.push(`<button class="btn-success btn-sm" onclick="TasksPage.exportData(${task.id})">合并并导出</button>`);
         }
@@ -927,7 +939,7 @@
 
     // 关闭任务
     async closeTask(taskId) {
-        if (!confirm('确定要提前关闭这个任务吗？')) {
+        if (!confirm('确定要关闭这个任务吗？')) {
             return;
         }
 
@@ -966,8 +978,7 @@
                 alert(result.message);
             }
         } catch (error) {
-            console.error('Export failed:', error);
-            alert('导出失败，请查看控制台日志');
+            alert('导出失败，请重试');
         } finally {
             if (btn) {
                 btn.textContent = originalText;

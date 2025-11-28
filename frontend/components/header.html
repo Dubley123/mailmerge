@@ -8,8 +8,8 @@
     <!-- 右侧 - 用户信息和登出按钮 -->
     <div class="header-right">
         <!-- 用户信息 -->
-        <div class="header-user">
-            <div class="header-user-avatar">👤</div>
+        <div class="header-user" id="headerUserLink" style="cursor: pointer;">
+            <div class="header-user-avatar" id="headerUserAvatar"></div>
             <span class="header-user-name" id="headerUserName">用户</span>
         </div>
 
@@ -31,6 +31,17 @@ if (!window.headerInitialized) {
         logoutBtn.addEventListener('click', async () => {
             if (window.confirm('确定要退出登录吗？')) {
                 await AuthAPI.logout();
+            }
+        });
+    }
+    
+    // 用户信息点击跳转到设置页面
+    const headerUserLink = document.getElementById('headerUserLink');
+    if (headerUserLink) {
+        headerUserLink.addEventListener('click', function() {
+            // 直接加载设置页面
+            if (window.Navigation) {
+                Navigation.loadPage('settings');
             }
         });
     }

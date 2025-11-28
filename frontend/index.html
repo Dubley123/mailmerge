@@ -59,6 +59,14 @@
             if (sidebarUserDept) {
                 sidebarUserDept.textContent = user.department || '未设置院系';
             }
+
+            // 更新头像
+            const avatarText = (user.name || user.username || 'U').charAt(0).toUpperCase();
+            const headerAvatar = document.querySelector('.header-user-avatar');
+            const sidebarAvatar = document.querySelector('.sidebar-user-avatar');
+            
+            if (headerAvatar) headerAvatar.textContent = avatarText;
+            if (sidebarAvatar) sidebarAvatar.textContent = avatarText;
         };
 
         // 检查登录状态

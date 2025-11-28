@@ -46,8 +46,8 @@
 
     <!-- 导航栏底部 - 用户信息 -->
     <div class="sidebar-footer">
-        <div class="sidebar-user">
-            <div class="sidebar-user-avatar">👤</div>
+        <div class="sidebar-user" id="sidebarUserLink" style="cursor: pointer;">
+            <div class="sidebar-user-avatar" id="sidebarUserAvatar"></div>
             <div class="sidebar-user-info">
                 <span class="sidebar-user-name" id="sidebarUserName">用户</span>
                 <span class="sidebar-user-role" id="sidebarUserDept">院系</span>
@@ -58,4 +58,17 @@
 
 <script>
     // 侧边栏初始化完成，用户信息将由主页面的updateUserInfo()更新
+    
+    // 添加用户点击跳转到设置页面
+    (function() {
+        const sidebarUserLink = document.getElementById('sidebarUserLink');
+        if (sidebarUserLink) {
+            sidebarUserLink.addEventListener('click', function() {
+                // 直接加载设置页面
+                if (window.Navigation) {
+                    Navigation.loadPage('settings');
+                }
+            });
+        }
+    })();
 </script>

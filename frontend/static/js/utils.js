@@ -117,6 +117,79 @@ const Utils = {
      */
     confirm(message) {
         return window.confirm(message);
+    },
+
+    /**
+     * 显示提示消息
+     * @param {string} message - 消息内容
+     * @param {string} type - 消息类型: 'success', 'error', 'warning', 'info'
+     */
+    showToast(message, type = 'info') {
+        // 创建toast容器（如果不存在）
+        let toastContainer = document.getElementById('toast-container');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.id = 'toast-container';
+            toastContainer.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                z-index: 10000;
+                pointer-events: none;
+            `;
+            document.body.appendChild(toastContainer);
+        }
+
+        // 创建toast元素
+        const toast = document.createElement('div');
+        toast.style.cssText = `
+            background: ${this.getToastColor(type)};
+            color: white;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            font-size: 14px;
+            max-width: 300px;
+            word-wrap: break-word;
+            pointer-events: auto;
+            cursor: pointer;
+            animation: toastSlideIn 0.3s ease-out;
+        `;
+
+        toast.textContent = message;
+        toast.onclick = () => this.removeToast(toast);
+
+        toastContainer.appendChild(toast);
+
+        // 自动移除
+        setTimeout(() => this.removeToast(toast), 5000);
+    },
+
+    /**
+     * 获取toast颜色
+     */
+    getToastColor(type) {
+        const colors = {
+            success: '#10B981',
+            error: '#EF4444',
+            warning: '#F59E0B',
+            info: '#3B82F6'
+        };
+        return colors[type] || colors.info;
+    },
+
+    /**
+     * 移除toast
+     */
+    removeToast(toast) {
+        toast.style.animation = 'toastSlideOut 0.3s ease-in';
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.parentNode.removeChild(toast);
+            }
+        }, 300);
     }
 };
 

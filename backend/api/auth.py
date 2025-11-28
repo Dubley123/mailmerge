@@ -164,6 +164,7 @@ async def login(request: LoginRequest, db: Session = Depends(get_db_session)):
             "id": user.id,
             "name": user.name,
             "username": user.username,
+            "account": user.account,
             "email": user.email,
             "phone": user.phone,
             "department": department.name if department else None
@@ -277,6 +278,7 @@ async def get_current_user_info(
             "id": current_user.id,
             "name": current_user.name,
             "username": current_user.username,
+            "account": current_user.account,
             "email": current_user.email,
             "phone": current_user.phone,
             "department": department.name if department else None

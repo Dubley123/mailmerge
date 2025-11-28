@@ -54,6 +54,7 @@ class AggregationDownloadResponse(BaseModel):
 @router.get("/list")
 def get_aggregation_list(
     task_id: Optional[int] = Query(None, description="按任务ID过滤"),
+    task_name: Optional[str] = Query(None, description="按任务名称模糊查询"),
     start_date: Optional[str] = Query(None, description="开始日期(YYYY-MM-DD)"),
     end_date: Optional[str] = Query(None, description="结束日期(YYYY-MM-DD)"),
     page: int = Query(1, ge=1, description="页码"),
@@ -75,10 +76,16 @@ def get_aggregation_list(
         query = db.query(Aggregation).filter(
             Aggregation.generated_by == current_secretary.id
         )
+        joined_task = False
         
         # 过滤条件
         if task_id:
             query = query.filter(Aggregation.task_id == task_id)
+        
+        if task_name:
+            query = query.join(CollectTask, Aggregation.task_id == CollectTask.id)
+            joined_task = True
+            query = query.filter(CollectTask.name.ilike(f"%{task_name}%"))
         
         if start_date:
             try:
@@ -100,7 +107,9 @@ def get_aggregation_list(
         # 排序
         if sort_by == "task_name":
             # 需要 join CollectTask 表
-            query = query.join(CollectTask, Aggregation.task_id == CollectTask.id)
+            if not joined_task:
+                query = query.join(CollectTask, Aggregation.task_id == CollectTask.id)
+                joined_task = True
             if sort_order == "asc":
                 query = query.order_by(CollectTask.name.asc())
             else:
