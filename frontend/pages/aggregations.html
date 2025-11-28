@@ -29,10 +29,10 @@
     </div>
 
     <!-- 加载指示器 -->
-    <div id="loadingIndicator" class="loading-indicator" style="display: none;">
+    <!-- <div id="loadingIndicator" class="loading-indicator" style="display: none;">
         <div class="loading-spinner"></div>
         <div>加载中...</div>
-    </div>
+    </div> -->
 
     <!-- 错误提示 -->
     <div id="errorMessage" class="error-message" style="display: none;"></div>
@@ -126,12 +126,21 @@
 
     // ==================== 工具函数 ====================
     function showLoading() {
-        elements.loadingIndicator.style.display = 'flex';
+        // elements.loadingIndicator.style.display = 'flex';
         elements.errorMessage.style.display = 'none';
+        elements.emptyState.style.display = 'none';
+        elements.tableBody.innerHTML = `
+            <tr>
+                <td colspan="5" class="loading-state" style="text-align: center; padding: 40px;">
+                    <div class="loading-spinner" style="margin: 0 auto 10px;"></div>
+                    <div>加载中...</div>
+                </td>
+            </tr>
+        `;
     }
 
     function hideLoading() {
-        elements.loadingIndicator.style.display = 'none';
+        // elements.loadingIndicator.style.display = 'none';
     }
 
     function showError(message) {
@@ -160,7 +169,8 @@
                 page: state.currentPage,
                 page_size: state.pageSize,
                 sort_by: state.sortBy,
-                sort_order: state.sortOrder
+                sort_order: state.sortOrder,
+                _t: Date.now() // Prevent caching
             });
 
             if (state.filters.taskName) {
@@ -216,11 +226,11 @@
             let downloadFilename = 'aggregation.xlsx';
             
             if (contentDisposition) {
-                const filenameStarMatch = /filename\*=UTF-8''(.+)/.exec(contentDisposition);
+                const filenameStarMatch = /filename\*=UTF-8''(.+)/i.exec(contentDisposition);
                 if (filenameStarMatch) {
                     downloadFilename = decodeURIComponent(filenameStarMatch[1]);
                 } else {
-                    const filenameMatch = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(contentDisposition);
+                    const filenameMatch = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/i.exec(contentDisposition);
                     if (filenameMatch && filenameMatch[1]) {
                         downloadFilename = filenameMatch[1].replace(/['"]/g, '');
                     }
@@ -258,7 +268,7 @@
                 <td class="col-name">${escapeHtml(agg.name)}</td>
                 <td class="col-task">${escapeHtml(agg.task_name)}</td>
                 <td class="col-time">${formatDateTime(agg.generated_at)}</td>
-                <td class="col-count">${agg.record_count || '-'}</td>
+                <td class="col-count">${agg.record_count !== null && agg.record_count !== undefined ? agg.record_count : '-'}</td>
                 <td class="col-actions">
                     <button class="btn-download" onclick="window.aggregationsPage.handleDownload(${agg.id}, '${escapeHtml(agg.name)}')">
                         <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
@@ -347,6 +357,14 @@
 
     // ==================== 事件绑定 ====================
     elements.refreshBtn.addEventListener('click', () => fetchAggregations());
+    
+    // 页面可见性变化时自动刷新
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+            fetchAggregations();
+        }
+    });
+
     elements.filterBtn.addEventListener('click', handleFilter);
     elements.resetFilterBtn.addEventListener('click', handleResetFilter);
     if (elements.taskNameFilter) {

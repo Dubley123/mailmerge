@@ -10,6 +10,7 @@ from datetime import datetime
 import openpyxl
 from openpyxl.cell import Cell
 import io
+from backend.utils import ensure_utc
 
 from backend.database.db_config import get_db_session
 from backend.database.models import TemplateForm, TemplateFormField, Secretary, DataType
@@ -93,7 +94,7 @@ async def get_templates(
             id=template.id,
             name=template.name,
             description=template.description,
-            created_at=template.created_at,
+            created_at=ensure_utc(template.created_at),
             field_count=field_count
         ))
     
@@ -139,7 +140,7 @@ async def get_template_detail(
         id=template.id,
         name=template.name,
         description=template.description,
-        created_at=template.created_at,
+        created_at=ensure_utc(template.created_at),
         fields=[
             FieldResponse(
                 id=field.id,

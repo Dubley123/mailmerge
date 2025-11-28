@@ -3,10 +3,11 @@
 提供汇总表的查询、下载等功能
 """
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
+from backend.utils import ensure_utc
 
 from backend.database.db_config import get_db_session
 from backend.database.models import Aggregation, CollectTask, Secretary
@@ -89,14 +90,14 @@ def get_aggregation_list(
         
         if start_date:
             try:
-                start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+                start_dt = datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
                 query = query.filter(Aggregation.generated_at >= start_dt)
             except ValueError:
                 pass
         
         if end_date:
             try:
-                end_dt = datetime.strptime(end_date + " 23:59:59", "%Y-%m-%d %H:%M:%S")
+                end_dt = datetime.strptime(end_date + " 23:59:59", "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
                 query = query.filter(Aggregation.generated_at <= end_dt)
             except ValueError:
                 pass
@@ -133,7 +134,7 @@ def get_aggregation_list(
                 "name": agg.name,
                 "task_id": agg.task_id,
                 "task_name": task.name if task else "未知任务",
-                "generated_at": agg.generated_at.isoformat(),
+                "generated_at": ensure_utc(agg.generated_at),
                 "record_count": agg.record_count,
                 "file_path": agg.file_path
             })
@@ -184,31 +185,20 @@ def download_aggregation(
         from backend.storage_service import download
         downloaded_path = download(source_path, local_file_path)
         
-        # 使用汇总表名称作为下载文件名
-        download_filename = f"{agg.name}{file_extension}"
+        # 使用原始文件名作为下载文件名，以便用户区分不同版本
+        # 这样用户可以看到文件名中的时间戳变化，确认是重新导出的文件
+        download_filename = original_filename
         
         # 返回文件下载响应
         from fastapi.responses import FileResponse
-        from urllib.parse import quote
         
-        # 对文件名进行URL编码以支持中文
-        encoded_filename = quote(download_filename.encode('utf-8'))
-        
-        response = FileResponse(
+        # 让 FastAPI/Starlette 自动处理 Content-Disposition 头
+        # 它会自动处理 UTF-8 文件名 (filename*=utf-8''...)
+        return FileResponse(
             path=downloaded_path,
             media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             filename=download_filename
         )
-        
-        # 设置 Content-Disposition 头，同时支持旧版和新版浏览器
-        # filename: ASCII回退，filename*: UTF-8编码（RFC 5987）
-        response.headers["Content-Disposition"] = (
-            f'attachment; '
-            f'filename="{download_filename.encode("ascii", "ignore").decode()}"; '
-            f"filename*=utf-8''{encoded_filename}"
-        )
-        
-        return response
     
     except HTTPException:
         raise
@@ -243,7 +233,7 @@ def get_aggregation_info(
                 "name": agg.name,
                 "task_id": agg.task_id,
                 "task_name": task.name if task else "未知任务",
-                "generated_at": agg.generated_at.isoformat(),
+                "generated_at": ensure_utc(agg.generated_at),
                 "record_count": agg.record_count,
                 "file_path": agg.file_path,
                 "extra": agg.extra

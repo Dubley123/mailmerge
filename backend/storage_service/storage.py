@@ -238,3 +238,54 @@ def download(source_path: str, local_file_path: str) -> str:
     
     else:
         raise ValueError(f"Unknown storage type: {parsed['type']}")
+
+
+def delete(target_path: str) -> bool:
+    """
+    Delete a file from storage.
+    
+    Args:
+        target_path: Target storage path (must have local:// or minio:// prefix)
+        
+    Returns:
+        bool: True if deletion was successful (or file didn't exist), False otherwise
+        
+    Raises:
+        ValueError: If target_path format is invalid
+        RuntimeError: If deletion fails
+    """
+    # Parse target path
+    parsed = parse_path(target_path)
+    
+    if parsed['type'] == 'local':
+        # Local storage
+        target_abs_path = parsed['abs_path']
+        
+        if os.path.exists(target_abs_path):
+            try:
+                os.remove(target_abs_path)
+                return True
+            except Exception as e:
+                raise RuntimeError(f"Failed to delete local file: {str(e)}")
+        return True
+    
+    elif parsed['type'] == 'minio':
+        # MinIO storage
+        bucket = parsed['bucket']
+        object_name = parsed['object_name']
+        
+        try:
+            from backend.storage_service.minio_service import get_minio_client
+            client = get_minio_client()
+            
+            # Delete object
+            client.remove_object(bucket_name=bucket, object_name=object_name)
+            return True
+            
+        except S3Error as e:
+            raise RuntimeError(f"MinIO deletion failed: {str(e)}")
+        except Exception as e:
+            raise RuntimeError(f"Deletion failed: {str(e)}")
+    
+    else:
+        raise ValueError(f"Unknown storage type: {parsed['type']}")

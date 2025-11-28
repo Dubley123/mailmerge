@@ -315,8 +315,18 @@
 }
 
 .status-badge.closed {
+    background-color: #E5E7EB;
+    color: #374151;
+}
+
+.status-badge.aggregated {
     background-color: #D1FAE5;
     color: #059669;
+}
+
+.status-badge.warning {
+    background-color: #FEF3C7;
+    color: #D97706;
 }
 
 /* 操作按钮组 */

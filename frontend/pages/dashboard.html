@@ -59,7 +59,36 @@
     }
 
     function renderTaskStats(stats) {
-        return '<div class="dashboard-card"><h2 class="dashboard-card-title">任务统计</h2><div class="task-stats-grid"><div class="task-stat-total"><div class="stat-value">' + stats.total + '</div><div class="stat-label">任务总数</div></div><div class="task-stat-item"><div class="stat-value">' + stats.draft + '</div><div class="stat-label">未发布</div></div><div class="task-stat-item"><div class="stat-value">' + stats.active + '</div><div class="stat-label">已发布</div></div><div class="task-stat-item"><div class="stat-value">' + stats.expired + '</div><div class="stat-label">超时未关闭</div></div><div class="task-stat-item"><div class="stat-value">' + stats.closed + '</div><div class="stat-label">已关闭</div></div></div></div>';
+        return `
+        <div class="dashboard-card">
+            <h2 class="dashboard-card-title">任务统计</h2>
+            <div class="task-stats-grid">
+                <div class="task-stat-total">
+                    <div class="stat-value">${stats.total}</div>
+                    <div class="stat-label">任务总数</div>
+                </div>
+                <div class="task-stat-item">
+                    <div class="stat-value">${stats.draft}</div>
+                    <div class="stat-label">未发布</div>
+                </div>
+                <div class="task-stat-item">
+                    <div class="stat-value">${stats.active}</div>
+                    <div class="stat-label">进行中</div>
+                </div>
+                <div class="task-stat-item">
+                    <div class="stat-value">${stats.closed}</div>
+                    <div class="stat-label">已关闭</div>
+                </div>
+                <div class="task-stat-item">
+                    <div class="stat-value">${stats.aggregated}</div>
+                    <div class="stat-label">已汇总</div>
+                </div>
+                <div class="task-stat-item">
+                    <div class="stat-value">${stats.needs_reaggregation}</div>
+                    <div class="stat-label">需重新汇总</div>
+                </div>
+            </div>
+        </div>`;
     }
 
     function renderEmailStats(stats) {

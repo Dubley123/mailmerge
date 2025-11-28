@@ -11,6 +11,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from datetime import datetime
 import enum
+from backend.utils import get_utc_now
 
 Base = declarative_base()
 
@@ -38,8 +39,9 @@ class TaskStatus(enum.Enum):
     """Collection task status"""
     DRAFT = "DRAFT"
     ACTIVE = "ACTIVE"
-    EXPIRED = "EXPIRED"
     CLOSED = "CLOSED"
+    AGGREGATED = "AGGREGATED"
+    NEEDS_REAGGREGATION = "NEEDS_REAGGREGATION"
 
 
 # Table Models
@@ -50,9 +52,9 @@ class Department(Base):
     id = Column(BigInteger, primary_key=True, autoincrement=True, comment='院系唯一ID')
     name = Column(String(100), nullable=False, unique=True, comment='院系名称')
     extra = Column(JSON, nullable=True, comment='扩展描述')
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow, comment='创建时间')
-    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, 
-                       onupdate=datetime.utcnow, comment='更新时间')
+    created_at = Column(DateTime(timezone=True), nullable=False, default=get_utc_now, comment='创建时间')
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=get_utc_now, 
+                       onupdate=get_utc_now, comment='更新时间')
 
     # Relationships
     teachers = relationship("Teacher", back_populates="department")
@@ -75,8 +77,8 @@ class Teacher(Base):
     title = Column(String(50), nullable=True, comment='职称')
     office = Column(String(100), nullable=True, comment='办公地点')
     extra = Column(JSON, nullable=True, comment='扩展信息')
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=get_utc_now)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=get_utc_now, onupdate=get_utc_now)
 
     # Relationships
     department = relationship("Department", back_populates="teachers")
@@ -104,8 +106,8 @@ class Secretary(Base):
     phone = Column(String(30), nullable=True, comment='手机')
     teacher_id = Column(BigInteger, ForeignKey('teacher.id'), nullable=True, comment='若秘书也是教师')
     extra = Column(JSON, nullable=True, comment='备注信息')
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=get_utc_now)
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=get_utc_now, onupdate=get_utc_now)
 
     # Relationships
     department = relationship("Department", back_populates="secretaries")
@@ -133,9 +135,9 @@ class TemplateForm(Base):
     description = Column(Text, nullable=True, comment='模板描述')
     created_by = Column(BigInteger, ForeignKey('secretary.id'), nullable=True, comment='创建秘书ID')
     extra = Column(JSON, nullable=True, comment='扩展字段')
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow, comment='创建时间')
-    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, 
-                       onupdate=datetime.utcnow, comment='更新时间')
+    created_at = Column(DateTime(timezone=True), nullable=False, default=get_utc_now, comment='创建时间')
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=get_utc_now, 
+                       onupdate=get_utc_now, comment='更新时间')
 
     # Relationships
     creator = relationship("Secretary", back_populates="templates_created")
@@ -158,9 +160,9 @@ class TemplateFormField(Base):
     data_type = Column(SQLEnum(DataType), nullable=False, default=DataType.TEXT, comment='字段类型')
     required = Column(Boolean, nullable=False, default=False, comment='是否必填字段')
     extra = Column(JSON, nullable=True, comment='扩展字段')
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow, comment='创建时间')
-    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, 
-                       onupdate=datetime.utcnow, comment='更新时间')
+    created_at = Column(DateTime(timezone=True), nullable=False, default=get_utc_now, comment='创建时间')
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=get_utc_now, 
+                       onupdate=get_utc_now, comment='更新时间')
 
     # Relationships
     form = relationship("TemplateForm", back_populates="fields")
@@ -178,16 +180,16 @@ class CollectTask(Base):
     id = Column(BigInteger, primary_key=True, comment='唯一 ID')
     name = Column(String(255), nullable=False, unique=True, comment='任务名称')
     description = Column(Text, nullable=True, comment='任务描述')
-    started_time = Column(DateTime, nullable=True, comment='任务实际开始的时间')
-    deadline = Column(DateTime, nullable=True, comment='任务计划结束时间')
+    started_time = Column(DateTime(timezone=True), nullable=True, comment='任务实际开始的时间')
+    deadline = Column(DateTime(timezone=True), nullable=True, comment='任务计划结束时间')
     template_id = Column(BigInteger, ForeignKey('template_form.id'), nullable=False, comment='对应的表单模板 ID')
     mail_content_template = Column(JSON, nullable=True, comment='邮件所有内容模板')
     status = Column(SQLEnum(TaskStatus), nullable=False, default=TaskStatus.DRAFT, comment='任务状态')
     created_by = Column(BigInteger, ForeignKey('secretary.id'), nullable=False, comment='创建者 ID')
     extra = Column(JSON, nullable=True, comment='扩展字段')
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow, comment='创建时间')
-    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, 
-                       onupdate=datetime.utcnow, comment='更新时间')
+    created_at = Column(DateTime(timezone=True), nullable=False, default=get_utc_now, comment='创建时间')
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=get_utc_now, 
+                       onupdate=get_utc_now, comment='更新时间')
 
     # Relationships
     creator = relationship("Secretary", back_populates="tasks_created")
@@ -233,9 +235,9 @@ class SentAttachment(Base):
     content_type = Column(String(255), nullable=True, comment='MIME 类型')
     file_size = Column(BigInteger, nullable=True, comment='文件大小（字节）')
     extra = Column(JSON, nullable=True, comment='扩展字段')
-    uploaded_at = Column(DateTime, nullable=False, default=datetime.utcnow, comment='上传时间')
-    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, 
-                       onupdate=datetime.utcnow, comment='更新时间')
+    uploaded_at = Column(DateTime(timezone=True), nullable=False, default=get_utc_now, comment='上传时间')
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=get_utc_now, 
+                       onupdate=get_utc_now, comment='更新时间')
 
     # Relationships
     sent_emails = relationship("SentEmail", back_populates="attachment")
@@ -253,16 +255,16 @@ class SentEmail(Base):
     task_id = Column(BigInteger, ForeignKey('collect_task.id'), nullable=False, comment='对应任务 ID')
     from_sec_id = Column(BigInteger, ForeignKey('secretary.id'), nullable=False, comment='发送秘书 ID')
     to_tea_id = Column(BigInteger, ForeignKey('teacher.id'), nullable=False, comment='接收教师 ID')
-    sent_at = Column(DateTime, nullable=True, comment='实际发送时间')
+    sent_at = Column(DateTime(timezone=True), nullable=True, comment='实际发送时间')
     status = Column(SQLEnum(EmailStatus), nullable=False, default=EmailStatus.QUEUED, comment='邮件发送状态')
     retry_count = Column(Integer, nullable=False, default=0, comment='重试次数')
     message_id = Column(String(255), nullable=True, comment='邮件服务返回的消息 ID')
     mail_content = Column(JSON, nullable=True, comment='邮件正文解析内容')
     attachment_id = Column(BigInteger, ForeignKey('sent_attachment.id'), nullable=True, comment='对应发送附件表 ID')
     extra = Column(JSON, nullable=True, comment='扩展字段')
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow, comment='创建时间')
-    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, 
-                       onupdate=datetime.utcnow, comment='更新时间')
+    created_at = Column(DateTime(timezone=True), nullable=False, default=get_utc_now, comment='创建时间')
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=get_utc_now, 
+                       onupdate=get_utc_now, comment='更新时间')
 
     # Relationships
     task = relationship("CollectTask", back_populates="sent_emails")
@@ -288,9 +290,9 @@ class ReceivedAttachment(Base):
     content_type = Column(String(255), nullable=True, comment='MIME 类型')
     file_size = Column(BigInteger, nullable=True, comment='文件大小（字节）')
     extra = Column(JSON, nullable=True, comment='扩展字段')
-    uploaded_at = Column(DateTime, nullable=False, default=datetime.utcnow, comment='上传时间')
-    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, 
-                       onupdate=datetime.utcnow, comment='更新时间')
+    uploaded_at = Column(DateTime(timezone=True), nullable=False, default=get_utc_now, comment='上传时间')
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=get_utc_now, 
+                       onupdate=get_utc_now, comment='更新时间')
 
     # Relationships
     received_emails = relationship("ReceivedEmail", back_populates="attachment")
@@ -308,16 +310,16 @@ class ReceivedEmail(Base):
     task_id = Column(BigInteger, ForeignKey('collect_task.id'), nullable=False, comment='对应任务 ID')
     from_tea_id = Column(BigInteger, ForeignKey('teacher.id'), nullable=False, comment='发件教师 ID')
     to_sec_id = Column(BigInteger, ForeignKey('secretary.id'), nullable=False, comment='收件秘书 ID')
-    received_at = Column(DateTime, nullable=False, comment='邮件接收时间')
+    received_at = Column(DateTime(timezone=True), nullable=False, comment='邮件接收时间')
     message_id = Column(String(255), nullable=True, comment='邮件服务返回的消息 ID')
     mail_content = Column(JSON, nullable=True, comment='邮件正文解析内容')
     attachment_id = Column(BigInteger, ForeignKey('received_attachment.id'), nullable=True, 
                           comment='对应接收附件表 ID')
     is_aggregated = Column(Boolean, nullable=False, default=False, comment='是否已被合并')
     extra = Column(JSON, nullable=True, comment='扩展字段')
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow, comment='创建时间')
-    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, 
-                       onupdate=datetime.utcnow, comment='更新时间')
+    created_at = Column(DateTime(timezone=True), nullable=False, default=get_utc_now, comment='创建时间')
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=get_utc_now, 
+                       onupdate=get_utc_now, comment='更新时间')
 
     # Relationships
     task = relationship("CollectTask", back_populates="received_emails")
@@ -341,13 +343,13 @@ class Aggregation(Base):
     task_id = Column(BigInteger, ForeignKey('collect_task.id'), nullable=False, comment='对应的任务 ID')
     name = Column(String(255), nullable=False, comment='汇总表名称')
     generated_by = Column(BigInteger, ForeignKey('secretary.id'), nullable=True, comment='执行汇总操作的教秘 ID')
-    generated_at = Column(DateTime, nullable=False, default=datetime.utcnow, comment='汇总生成时间')
+    generated_at = Column(DateTime(timezone=True), nullable=False, default=get_utc_now, comment='汇总生成时间')
     record_count = Column(Integer, nullable=True, comment='本次汇总的记录条数')
     file_path = Column(Text, nullable=False, comment='汇总生成文件路径')
     extra = Column(JSON, nullable=True, comment='扩展字段')
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow, comment='创建时间')
-    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, 
-                       onupdate=datetime.utcnow, comment='更新时间')
+    created_at = Column(DateTime(timezone=True), nullable=False, default=get_utc_now, comment='创建时间')
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=get_utc_now, 
+                       onupdate=get_utc_now, comment='更新时间')
 
     # Relationships
     task = relationship("CollectTask", back_populates="aggregations")

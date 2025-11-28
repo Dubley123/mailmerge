@@ -30,6 +30,13 @@
             </div>
         </div>
         <div class="toolbar-right">
+            <button id="refreshTaskBtn" class="btn-secondary" onclick="TasksPage.loadTasks()" style="margin-right: 8px;">
+                <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                    <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
+                    <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
+                </svg>
+                刷新
+            </button>
             <button class="btn-primary" onclick="TasksPage.openCreateModal()">
                 <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
                     <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/>
@@ -215,8 +222,8 @@
                         <table class="detail-table">
                             <thead>
                                 <tr>
-                                    <th>姓名</th>
-                                    <th>工号</th>
+                                    <th style="width: 25%">姓名</th>
+                                    <th style="width: 25%">工号</th>
                                     <th>邮箱</th>
                                 </tr>
                             </thead>
@@ -521,16 +528,23 @@
             const statusClass = {
                 'DRAFT': 'draft',
                 'ACTIVE': 'active',
-                'EXPIRED': 'expired',
-                'CLOSED': 'closed'
+                'CLOSED': 'closed',
+                'AGGREGATED': 'success',
+                'NEEDS_REAGGREGATION': 'warning'
             }[task.status] || 'draft';
 
-            const statusText = {
+            let statusText = {
                 'DRAFT': '未发布',
-                'ACTIVE': '已发布',
-                'EXPIRED': '超时未关闭',
-                'CLOSED': '已关闭'
+                'ACTIVE': '进行中',
+                'CLOSED': '已关闭',
+                'AGGREGATED': '已汇总',
+                'NEEDS_REAGGREGATION': '需重新汇总'
             }[task.status] || task.status;
+
+            // Add warning icon for NEEDS_REAGGREGATION
+            if (task.status === 'NEEDS_REAGGREGATION') {
+                statusText = `<span title="汇总后有新邮件送达，可能需重新汇总">⚠️ ${statusText}</span>`;
+            }
 
             return `
                 <tr>
@@ -554,11 +568,16 @@
         if (task.status === 'DRAFT') {
             buttons.push(`<button class="btn-primary btn-sm" onclick="TasksPage.publishTask(${task.id})">一键发布</button>`);
             buttons.push(`<button class="btn-secondary btn-sm" onclick="TasksPage.editTask(${task.id})">编辑</button>`);
-        } else if (task.status === 'ACTIVE' || task.status === 'EXPIRED') {
+            buttons.push(`<button class="btn-danger btn-sm" onclick="TasksPage.deleteTask(${task.id})">删除</button>`);
+        } else if (task.status === 'ACTIVE') {
             buttons.push(`<button class="btn-warning btn-sm" onclick="TasksPage.remindTeachers(${task.id})">一键催促</button>`);
-            buttons.push(`<button class="btn-danger btn-sm" onclick="TasksPage.closeTask(${task.id})">关闭任务</button>`);
+            buttons.push(`<button class="btn-danger btn-sm" onclick="TasksPage.closeTask(${task.id})">关闭并导出</button>`);
         } else if (task.status === 'CLOSED') {
-            buttons.push(`<button class="btn-success btn-sm" onclick="TasksPage.exportData(${task.id})">合并并导出</button>`);
+            buttons.push(`<button class="btn-success btn-sm" onclick="TasksPage.exportData(${task.id})">一键导出</button>`);
+        } else if (task.status === 'AGGREGATED') {
+            buttons.push(`<button class="btn-success btn-sm" onclick="TasksPage.exportData(${task.id})">重新导出</button>`);
+        } else if (task.status === 'NEEDS_REAGGREGATION') {
+            buttons.push(`<button class="btn-primary btn-sm" onclick="TasksPage.exportData(${task.id})">重新导出</button>`);
         }
 
         return `<div class="action-buttons">${buttons.join('')}</div>`;
@@ -984,6 +1003,22 @@
                 btn.textContent = originalText;
                 btn.disabled = false;
             }
+            this.loadTasks(); // Reload to update status
+        }
+    },
+
+    // 删除任务
+    async deleteTask(taskId) {
+        if (!confirm('确定要删除这个任务吗？此操作不可恢复。')) {
+            return;
+        }
+
+        const result = await TasksAPI.deleteTask(taskId);
+        if (result.success) {
+            alert(result.message);
+            this.loadTasks();
+        } else {
+            alert(result.message);
         }
     }
 };

@@ -18,6 +18,13 @@
             </div>
         </div>
         <div class="toolbar-right">
+            <button id="refreshTemplateBtn" class="btn-secondary" onclick="TemplatesPage.loadTemplates()" style="margin-right: 8px;">
+                <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                    <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
+                    <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
+                </svg>
+                刷新
+            </button>
             <button class="btn-primary" onclick="TemplatesPage.openCreateModal()">
                 <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
                     <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/>
@@ -29,9 +36,28 @@
 
     <!-- 模板列表表格 -->
     <div class="table-card">
-        <div id="templatesTableContainer">
-            <!-- 表格内容将通过 JS 动态加载 -->
-        </div>
+        <table class="templates-table">
+            <thead>
+                <tr>
+                    <th class="col-name sortable" data-sort="name">
+                        模板名称
+                        <span class="sort-icon">⇅</span>
+                    </th>
+                    <th class="col-count sortable" data-sort="field_count">
+                        字段数量
+                        <span class="sort-icon">⇅</span>
+                    </th>
+                    <th class="col-time sortable active" data-sort="created_at">
+                        创建时间
+                        <span class="sort-icon">▼</span>
+                    </th>
+                    <th class="col-actions">操作</th>
+                </tr>
+            </thead>
+            <tbody id="templatesTableBody">
+                <!-- 表格内容将通过 JS 动态加载 -->
+            </tbody>
+        </table>
     </div>
 </div>
 
@@ -169,15 +195,13 @@ const TemplatesPage = (() => {
     }
 
     function bindSortEvents() {
-        // 延迟绑定，确保DOM已渲染
-        setTimeout(() => {
-            document.querySelectorAll('.sortable').forEach(th => {
-                th.addEventListener('click', () => {
-                    const sortByField = th.dataset.sort;
-                    handleSort(sortByField);
-                });
+        // 直接绑定，因为DOM现在是静态的
+        document.querySelectorAll('.sortable').forEach(th => {
+            th.addEventListener('click', () => {
+                const sortByField = th.dataset.sort;
+                handleSort(sortByField);
             });
-        }, 100);
+        });
     }
 
     function bindFilterEvents() {
@@ -259,20 +283,33 @@ const TemplatesPage = (() => {
     
     async function loadTemplates() {
         console.log('[Templates] 模板列表加载开始');
-        const container = document.getElementById('templatesTableContainer');
-        container.innerHTML = '<div class="loading-container"><div class="loading-spinner"></div></div>';
+        const tbody = document.getElementById('templatesTableBody');
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="4" style="padding: 0; border: none;">
+                    <div class="loading-state" style="text-align: center; padding: 40px;">
+                        <div class="loading-spinner" style="margin: 0 auto 10px;"></div>
+                        <div>加载中...</div>
+                    </div>
+                </td>
+            </tr>
+        `;
 
         try {
             templates = await TemplateAPI.getTemplates();
             sortAndRenderTemplates();
             console.log('[Templates] 模板列表加载完成');
         } catch (error) {
-            container.innerHTML = `
-                <div class="empty-state">
-                    <i>⚠️</i>
-                    <p>加载失败: ${error.message}</p>
-                    <button class="btn btn-primary" onclick="TemplatesPage.loadTemplates()">重试</button>
-                </div>
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="4" style="padding: 0; border: none;">
+                        <div class="empty-state">
+                            <i>⚠️</i>
+                            <p>加载失败: ${error.message}</p>
+                            <button class="btn btn-primary" onclick="TemplatesPage.loadTemplates()">重试</button>
+                        </div>
+                    </td>
+                </tr>
             `;
         }
     }
@@ -334,7 +371,7 @@ const TemplatesPage = (() => {
     }
 
     function renderTemplateList(sortedTemplates = templates) {
-        const container = document.getElementById('templatesTableContainer');
+        const tbody = document.getElementById('templatesTableBody');
 
         let tbodyContent = '';
         
@@ -375,35 +412,9 @@ const TemplatesPage = (() => {
             `).join('');
         }
 
-        const tableHTML = `
-            <table class="templates-table">
-                <thead>
-                    <tr>
-                        <th class="col-name sortable" data-sort="name">
-                            模板名称
-                            <span class="sort-icon">⇅</span>
-                        </th>
-                        <th class="col-count sortable" data-sort="field_count">
-                            字段数量
-                            <span class="sort-icon">⇅</span>
-                        </th>
-                        <th class="col-time sortable active" data-sort="created_at">
-                            创建时间
-                            <span class="sort-icon">▼</span>
-                        </th>
-                        <th class="col-actions">操作</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${tbodyContent}
-                </tbody>
-            </table>
-        `;
-
-        container.innerHTML = tableHTML;
+        tbody.innerHTML = tbodyContent;
         
-        // 重新绑定排序事件
-        bindSortEvents();
+        // 不需要重新绑定排序事件，因为thead是静态的
     }
 
     // ==================== 查看模板描述 ====================

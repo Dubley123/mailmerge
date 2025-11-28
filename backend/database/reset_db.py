@@ -7,7 +7,7 @@ import sys
 import os
 import json
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.pool import NullPool
 import hashlib
 
@@ -23,6 +23,7 @@ from backend.database.models import (
 from backend.database.db_config import get_engine, get_session_factory
 from backend.storage_service import ensure_minio_running
 from backend.storage_service.storage import parse_path
+from backend.utils import ensure_utc
 
 
 def hash_password(password: str) -> str:
@@ -255,9 +256,9 @@ def load_default_data(session, data_file: str):
             started_time = None
             deadline = None
             if task_data.get('started_time'):
-                started_time = datetime.fromisoformat(task_data['started_time'].replace('Z', '+00:00'))
+                started_time = ensure_utc(datetime.fromisoformat(task_data['started_time'].replace('Z', '+00:00')))
             if task_data.get('deadline'):
-                deadline = datetime.fromisoformat(task_data['deadline'].replace('Z', '+00:00'))
+                deadline = ensure_utc(datetime.fromisoformat(task_data['deadline'].replace('Z', '+00:00')))
             
             task = CollectTask(
                 name=task_data['name'],
@@ -343,7 +344,7 @@ def load_default_data(session, data_file: str):
             # Parse datetime
             sent_at = None
             if email_data.get('sent_at'):
-                sent_at = datetime.fromisoformat(email_data['sent_at'].replace('Z', '+00:00'))
+                sent_at = ensure_utc(datetime.fromisoformat(email_data['sent_at'].replace('Z', '+00:00')))
             
             email = SentEmail(
                 task_id=task_id,  # 使用刚创建的task ID
@@ -406,7 +407,7 @@ def load_default_data(session, data_file: str):
         
         for idx, email_data in enumerate(data['received_emails']):
             # Parse datetime
-            received_at = datetime.fromisoformat(email_data['received_at'].replace('Z', '+00:00'))
+            received_at = ensure_utc(datetime.fromisoformat(email_data['received_at'].replace('Z', '+00:00')))
             
             # 每个email对应不同的attachment
             attachment_id = recv_attach_id_map.get(idx) if idx in recv_attach_id_map else None
@@ -439,10 +440,6 @@ def reset_database(data_file: str = None):
     if data_file is None:
         data_file = str(Path(__file__).parent / "default_data" / "default_data.json")
 
-    print("=" * 60)
-    print("DATABASE & STORAGE RESET")
-    print("=" * 60)
-    
     # Step 1: Ensure MinIO is running and bucket exists
     print("\n[1/4] Starting MinIO service...")
     bucket_is_new = False
@@ -511,12 +508,7 @@ def reset_database(data_file: str = None):
         print("Skipping table drop (database was just created)")
     
     create_all_tables(engine)
-    
-    print("\nSkipping default data load. Use backend/database/set_default.py or the --set-default option to insert default data.")
-    
-    print("\n" + "=" * 60)
-    print("DATABASE & STORAGE RESET COMPLETE")
-    print("=" * 60)
+
     
     
 if __name__ == "__main__":

@@ -47,6 +47,16 @@ const TasksAPI = {
     },
 
     /**
+     * 删除任务
+     */
+    async deleteTask(taskId) {
+        const result = await CommonAPI.delete(`/api/tasks/${taskId}`);
+        return result.success
+            ? { success: true, message: '任务已删除' }
+            : { success: false, message: result.error || '删除任务失败' };
+    },
+
+    /**
      * 关闭任务
      */
     async closeTask(taskId) {
@@ -74,6 +84,16 @@ const TasksAPI = {
         return result.success
             ? { success: true, message: '合并导出成功', data: result.data }
             : { success: false, message: result.error || '合并导出失败' };
+    },
+
+    /**
+     * 忽略新邮件
+     */
+    async ignoreNewEmails(taskId) {
+        const result = await CommonAPI.post(`/api/tasks/${taskId}/ignore_new_emails`);
+        return result.success
+            ? { success: true, message: '已忽略新邮件' }
+            : { success: false, message: result.error || '操作失败' };
     },
 
     /**

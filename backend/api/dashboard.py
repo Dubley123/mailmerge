@@ -38,8 +38,9 @@ class TaskStats(BaseModel):
     total: int
     draft: int
     active: int
-    expired: int
     closed: int
+    aggregated: int
+    needs_reaggregation: int
 
 
 class EmailStats(BaseModel):
@@ -100,15 +101,17 @@ async def get_dashboard_overview(
     total_tasks = task_query.count()
     draft_tasks = task_query.filter(CollectTask.status == TaskStatus.DRAFT).count()
     active_tasks = task_query.filter(CollectTask.status == TaskStatus.ACTIVE).count()
-    expired_tasks = task_query.filter(CollectTask.status == TaskStatus.EXPIRED).count()
     closed_tasks = task_query.filter(CollectTask.status == TaskStatus.CLOSED).count()
+    aggregated_tasks = task_query.filter(CollectTask.status == TaskStatus.AGGREGATED).count()
+    needs_reaggregation_tasks = task_query.filter(CollectTask.status == TaskStatus.NEEDS_REAGGREGATION).count()
 
     task_stats = TaskStats(
         total=total_tasks,
         draft=draft_tasks,
         active=active_tasks,
-        expired=expired_tasks,
-        closed=closed_tasks
+        closed=closed_tasks,
+        aggregated=aggregated_tasks,
+        needs_reaggregation=needs_reaggregation_tasks
     )
 
     # 3. 获取邮件统计

@@ -249,7 +249,7 @@
 | deadline              | DATETIME                                        | NULL                                                         | 任务计划结束时间（可为空表示无截止）              |
 | template_id           | BIGINT                                          | NOT NULL, FOREIGN KEY → TemplateForm(id)                     | 对应的表单模板 ID                                 |
 | mail_content_template | JSON                                            | NULL                                                         | 邮件所有内容模板（主题、正文、附件说明等）        |
-| status                | ENUM('DRAFT', 'ACTIVE', 'EXPIRED', 'CLOSED')    | NOT NULL, DEFAULT 'DRAFT'                                    | 任务状态，分别为：草稿/进行中/已过期/已关闭       |
+| status                | ENUM('DRAFT', 'ACTIVE', 'CLOSED', 'AGGREGATED', 'NEEDS_REAGGREGATION') | NOT NULL, DEFAULT 'DRAFT'                                    | 任务状态，分别为：草稿/进行中/已关闭/已汇总/需重新汇总 |
 | created_by            | BIGINT                                          | NOT NULL, FOREIGN KEY → Secretary(id)                        | 创建者 ID（教秘）                                 |
 | extra                 | JSON                                            | NULL                                                         | 扩展字段（预留，默认NULL）                        |
 | created_at            | DATETIME                                        | NOT NULL, DEFAULT CURRENT_TIMESTAMP                          | 创建时间                                          |

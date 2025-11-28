@@ -22,10 +22,6 @@ def set_default(data_file: str = None):
     if data_file is None:
         data_file = str(Path(__file__).parent / "default_data" / "default_data.json")
 
-    print("=" * 60)
-    print("SET DEFAULT DATA")
-    print("=" * 60)
-
     # Ensure MinIO running (attachments upload depends on storage)
     try:
         ensure_minio_running()
