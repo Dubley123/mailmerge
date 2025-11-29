@@ -28,6 +28,7 @@ class AggregationItem(BaseModel):
     task_name: str
     generated_at: datetime
     record_count: Optional[int]
+    has_validation_issues: bool = False
     file_path: str
     
     class Config:
@@ -136,7 +137,8 @@ def get_aggregation_list(
                 "task_name": task.name if task else "未知任务",
                 "generated_at": ensure_utc(agg.generated_at),
                 "record_count": agg.record_count,
-                "file_path": agg.file_path
+                "file_path": agg.file_path,
+                "has_validation_issues": agg.has_validation_issues
             })
         
         # 返回数据和总数（CommonAPI会自动包装success: true）
@@ -225,6 +227,18 @@ def get_aggregation_info(
             raise HTTPException(status_code=403, detail="无权限查看此汇总表")
         
         task = db.query(CollectTask).filter(CollectTask.id == agg.task_id).first()
+        # Build teacher name map for validation errors
+        teacher_name_map = {}
+        if agg.validation_errors:
+            try:
+                tid_list = [int(tid) for tid in agg.validation_errors.keys() if str(tid).isdigit()]
+                if tid_list:
+                    from backend.database.models import Teacher
+                    teachers = db.query(Teacher).filter(Teacher.id.in_(tid_list)).all()
+                    for t in teachers:
+                        teacher_name_map[str(t.id)] = t.name
+            except Exception:
+                teacher_name_map = {}
         
         return {
             "success": True,
@@ -236,7 +250,9 @@ def get_aggregation_info(
                 "generated_at": ensure_utc(agg.generated_at),
                 "record_count": agg.record_count,
                 "file_path": agg.file_path,
-                "extra": agg.extra
+                "extra": agg.extra,
+                "validation_errors": agg.validation_errors,
+                "validation_teacher_names": teacher_name_map
             }
         }
     

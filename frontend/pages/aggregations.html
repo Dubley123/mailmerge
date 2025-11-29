@@ -1,5 +1,5 @@
 <!-- 已汇总表单页面 -->
-<link rel="stylesheet" href="/frontend/static/css/aggregations.css">
+<link rel="stylesheet" href="/frontend/static/css/aggregations.css?v=3ee53c8a">
 
 <div class="aggregations-container">
     <!-- 顶部工具栏 -->
@@ -55,6 +55,7 @@
                         <span class="sort-icon">▼</span>
                     </th>
                     <th class="col-count">记录数量</th>
+                            <th class="col-validate">校验状态</th>
                     <th class="col-actions">操作</th>
                 </tr>
             </thead>
@@ -67,6 +68,21 @@
         <div id="emptyState" class="empty-state" style="display: none;">
             <div class="empty-state-icon">📦</div>
             <div class="empty-state-text">暂无汇总表</div>
+        </div>
+    </div>
+    <!-- 校验错误详情弹窗 -->
+    <div id="validationErrorsModal" class="modal-overlay" style="display:none;">
+        <div class="modal modal-detail">
+            <div class="modal-header">
+                <h2 class="modal-title">校验错误详情</h2>
+                <button class="modal-close" onclick="window.aggregationsPage.closeValidationModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="validationErrorsContent"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="window.aggregationsPage.closeValidationModal()">关闭</button>
+            </div>
         </div>
     </div>
 
@@ -252,6 +268,44 @@
         }
     }
 
+    async function showValidation(aggregationId) {
+        try {
+            const result = await CommonAPI.get(`/api/aggregations/${aggregationId}/info`);
+            if (!result.success) {
+                alert(result.message || '获取校验信息失败');
+                return;
+            }
+            const data = result.data || {};
+            const errors = data.validation_errors || {};
+            const content = document.getElementById('validationErrorsContent');
+            if (!errors || Object.keys(errors).length === 0) {
+                content.innerHTML = '<div>暂无校验错误</div>';
+            } else {
+                let html = '<div class="validation-errors-list">';
+                const namesMap = data.validation_teacher_names || {};
+                for (const teacherId of Object.keys(errors)) {
+                    const rows = errors[teacherId];
+                    const teacherName = namesMap[teacherId] || '';
+                    html += `<div style="margin-bottom:12px;">
+                        <div style="font-weight:600;">教师: ${escapeHtml(teacherName)} (ID: ${escapeHtml(teacherId)})</div>`;
+                    rows.forEach(err => {
+                        html += `<div style="margin-left:12px;">字段: ${escapeHtml(err.field)} - 原因: ${escapeHtml(err.reason)} - 原始值: ${escapeHtml(err.value || '')}</div>`;
+                    });
+                    html += '</div>';
+                }
+                html += '</div>';
+                content.innerHTML = html;
+            }
+            document.getElementById('validationErrorsModal').style.display = 'flex';
+        } catch (err) {
+            alert('获取校验信息失败，请重试');
+        }
+    }
+
+    function closeValidationModal() {
+        document.getElementById('validationErrorsModal').style.display = 'none';
+    }
+
     // ==================== 渲染函数 ====================
     function renderTable(aggregations) {
         if (aggregations.length === 0) {
@@ -269,6 +323,7 @@
                 <td class="col-task">${escapeHtml(agg.task_name)}</td>
                 <td class="col-time">${formatDateTime(agg.generated_at)}</td>
                 <td class="col-count">${agg.record_count !== null && agg.record_count !== undefined ? agg.record_count : '-'}</td>
+                <td class="col-validate"><a href="#" onclick="window.aggregationsPage.showValidation(${agg.id}); return false;">${agg.has_validation_issues ? '<span style="color:#D97706;">有不合规</span>' : '<span style="color:#059669;">正常</span>'}</a></td>
                 <td class="col-actions">
                     <button class="btn-download" onclick="window.aggregationsPage.handleDownload(${agg.id}, '${escapeHtml(agg.name)}')">
                         <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
@@ -405,7 +460,9 @@
 
     // ==================== 导出全局函数 ====================
     window.aggregationsPage = {
-        handleDownload: handleDownload
+        handleDownload: handleDownload,
+        showValidation: showValidation,
+        closeValidationModal: closeValidationModal
     };
 
     // ==================== 初始化 ====================

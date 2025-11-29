@@ -1,5 +1,5 @@
 <!-- 表单模板页面 -->
-<link rel="stylesheet" href="/frontend/static/css/templates-new.css">
+<link rel="stylesheet" href="/frontend/static/css/templates-new.css?v=515537a3">
 
 <div class="templates-container">
     <!-- 顶部工具栏 -->
@@ -59,43 +59,6 @@
             </tbody>
         </table>
     </div>
-</div>
-
-<!-- 模板描述模态框 -->
-<div id="templateDescModal" class="modal-overlay" style="display: none;">
-    <div class="modal" style="max-width: 500px;">
-        <div class="modal-header">
-            <h3 class="modal-title" id="templateDescModalTitle">模板描述</h3>
-            <button class="close-btn" onclick="TemplatesPage.closeTemplateDescModal()">×</button>
-        </div>
-        <div class="modal-body">
-            <div id="templateDescContent" style="color: #666; line-height: 1.6;">
-                <!-- 描述内容将通过 JS 动态加载 -->
-            </div>
-        </div>
-        <div class="modal-footer">
-            <button class="btn btn-secondary" onclick="TemplatesPage.closeTemplateDescModal()">关闭</button>
-        </div>
-    </div>
-</div>
-
-<!-- 字段详情模态框 -->
-<div id="fieldDetailModal" class="modal-overlay" style="display: none;">
-    <div class="modal">
-        <div class="modal-header">
-            <h3 class="modal-title" id="fieldDetailModalTitle">模板字段详情</h3>
-            <button class="close-btn" onclick="TemplatesPage.closeFieldDetailModal()">×</button>
-        </div>
-        <div class="modal-body">
-            <div id="fieldDetailContent" class="field-detail-list">
-                <!-- 字段详情将通过 JS 动态加载 -->
-            </div>
-        </div>
-        <div class="modal-footer">
-            <button class="btn btn-secondary" onclick="TemplatesPage.closeFieldDetailModal()">关闭</button>
-        </div>
-    </div>
-</div>
 
 <!-- 创建/编辑模板模态框 -->
 <div id="templateFormModal" class="modal-overlay" style="display: none;">
@@ -147,6 +110,99 @@
                 </div>
             </form>
         </div>
+        <!-- Nested 校验规则 弹窗（放在创建模板弹窗内部以便层级一致） -->
+        <div id="validationRuleModal" class="modal-overlay" style="display: none;">
+            <div class="modal" style="max-width: 560px;">
+                <div class="modal-header">
+                    <h3 class="modal-title" id="validationRuleModalTitle">设置校验规则</h3>
+                    <button class="close-btn" onclick="TemplatesPage.closeValidationModal()">×</button>
+                </div>
+                <div class="modal-body" style="padding: 24px;">
+                    <!-- 字段类型 -->
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label class="form-label" style="font-size: 14px; font-weight: 600; color: #1F2937; margin-bottom: 8px;">字段类型</label>
+                        <select id="validationTypeSelect" class="form-select" style="width: 100%;">
+                            <option value="">（不限制）</option>
+                            <option value="TEXT">文本</option>
+                            <option value="INTEGER">整数</option>
+                            <option value="FLOAT">小数</option>
+                            <option value="DATE">日期</option>
+                            <option value="DATETIME">日期时间</option>
+                            <option value="BOOLEAN">是/否</option>
+                            <option value="EMAIL">邮箱</option>
+                            <option value="PHONE">电话号码</option>
+                            <option value="ID_CARD">身份证号</option>
+                            <option value="EMPLOYEE_ID">工号</option>
+                        </select>
+                    </div>
+                    
+                    <!-- 是否必填 -->
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <div class="toggle-wrapper">
+                            <span class="toggle-label" style="font-size: 14px; font-weight: 600; color: #1F2937;">是否必填</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="validationRequired">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- 分隔线 -->
+                    <div style="border-top: 1px solid #E5E7EB; margin: 20px 0;"></div>
+                    
+                    <!-- 条件设置区域 -->
+                    <div id="validationHints">
+                        <!-- 数字类型限制 -->
+                        <div class="numeric-group" style="display:none;">
+                            <h4 style="font-size: 13px; font-weight: 600; color: #6B7280; margin-bottom: 12px;">数值范围限制</h4>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                                <div class="form-group" style="margin: 0;">
+                                    <label class="form-label" style="font-size: 13px; color: #6B7280;">最小值</label>
+                                    <input type="number" id="validationMin" class="form-input" placeholder="可选" />
+                                </div>
+                                <div class="form-group" style="margin: 0;">
+                                    <label class="form-label" style="font-size: 13px; color: #6B7280;">最大值</label>
+                                    <input type="number" id="validationMax" class="form-input" placeholder="可选" />
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 文本类型限制 -->
+                        <div class="text-group" style="display:none;">
+                            <h4 style="font-size: 13px; font-weight: 600; color: #6B7280; margin-bottom: 12px;">文本长度限制</h4>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                                <div class="form-group" style="margin: 0;">
+                                    <label class="form-label" style="font-size: 13px; color: #6B7280;">最小长度</label>
+                                    <input type="number" id="validationMinLen" class="form-input" placeholder="可选" />
+                                </div>
+                                <div class="form-group" style="margin: 0;">
+                                    <label class="form-label" style="font-size: 13px; color: #6B7280;">最大长度</label>
+                                    <input type="number" id="validationMaxLen" class="form-input" placeholder="可选" />
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 日期类型提示 -->
+                        <div class="date-hint" style="display:none; background: #F3F4F6; padding: 12px; border-radius: 8px; margin-top: 8px;">
+                            <div style="display: flex; align-items: start; gap: 8px;">
+                                <svg width="16" height="16" style="flex-shrink: 0; margin-top: 2px;" fill="#6B7280" viewBox="0 0 16 16">
+                                    <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
+                                    <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533L8.93 6.588zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"/>
+                                </svg>
+                                <div style="font-size: 13px; color: #6B7280; line-height: 1.5;">
+                                    <div id="dateHint">日期类型只限制年月日，不包含具体时间点。</div>
+                                    <div id="datetimeHint" style="display:none;">日期时间类型包含具体的时间点（时:分）。</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="TemplatesPage.closeValidationModal()">取消</button>
+                    <button class="btn btn-primary" onclick="TemplatesPage.saveValidationRule()">保存</button>
+                </div>
+            </div>
+        </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="TemplatesPage.closeTemplateFormModal()">取消</button>
             <button class="btn btn-primary" onclick="TemplatesPage.saveTemplate()">保存</button>
@@ -154,7 +210,39 @@
     </div>
 </div>
 
-<script src="/frontend/static/js/api/templates.js"></script>
+<!-- 模板描述弹窗 -->
+<div id="templateDescModal" class="modal-overlay" style="display: none;">
+    <div class="modal modal-detail">
+        <div class="modal-header">
+            <h3 class="modal-title" id="templateDescModalTitle">模板描述</h3>
+            <button class="close-btn" onclick="TemplatesPage.closeTemplateDescModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <p id="templateDescContent" style="line-height: 1.8; color: #4B5563;"></p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="TemplatesPage.closeTemplateDescModal()">关闭</button>
+        </div>
+    </div>
+</div>
+
+<!-- 字段详情弹窗 -->
+<div id="fieldDetailModal" class="modal-overlay" style="display: none;">
+    <div class="modal modal-detail" style="max-width: 700px;">
+        <div class="modal-header">
+            <h3 class="modal-title" id="fieldDetailModalTitle">字段详情</h3>
+            <button class="close-btn" onclick="TemplatesPage.closeFieldDetailModal()">×</button>
+        </div>
+        <div class="modal-body" style="padding: 24px;">
+            <div id="fieldDetailContent" class="field-detail-list"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="TemplatesPage.closeFieldDetailModal()">关闭</button>
+        </div>
+    </div>
+</div>
+
+<script src="/frontend/static/js/api/templates.js?v=c0d4d034"></script>
 <script>
 // 使用 IIFE 避免全局变量污染，每次加载页面时创建新实例
 (function() {
@@ -177,12 +265,15 @@ const TemplatesPage = (() => {
     // 字段类型选项
     const fieldTypes = [
         { value: 'TEXT', label: '文本' },
-        { value: 'NUMBER', label: '数字' },
+        { value: 'INTEGER', label: '整数' },
+        { value: 'FLOAT', label: '小数' },
         { value: 'DATE', label: '日期' },
-        { value: 'TIME', label: '时间' },
+        { value: 'DATETIME', label: '日期时间' },
         { value: 'BOOLEAN', label: '是/否' },
-        { value: 'RADIO', label: '单选' },
-        { value: 'CHECKBOX', label: '多选' }
+        { value: 'EMAIL', label: '邮箱' },
+        { value: 'PHONE', label: '电话号码' },
+        { value: 'ID_CARD', label: '身份证号' },
+        { value: 'EMPLOYEE_ID', label: '工号' }
     ];
 
     // ==================== 初始化 ====================
@@ -449,22 +540,46 @@ const TemplatesPage = (() => {
 
             if (template.fields.length === 0) {
                 content.innerHTML = `
-                    <div class="empty-state">
-                        <p>该模板暂无字段</p>
+                    <div class="empty-state" style="padding: 40px; text-align: center;">
+                        <div style="font-size: 48px; margin-bottom: 12px;">📋</div>
+                        <p style="color: #9CA3AF;">该模板暂无字段</p>
                     </div>
                 `;
             } else {
-                content.innerHTML = template.fields.map(field => `
-                    <div class="field-detail-item">
-                        <div class="field-detail-header">
-                            <span class="field-detail-name">${escapeHtml(field.display_name)}</span>
-                            ${field.required ? '<span class="field-detail-required">必填</span>' : ''}
+                content.innerHTML = template.fields.map((field, index) => {
+                    const rule = field.validation_rule || {};
+                    const typeLabel = rule.type ? getFieldTypeLabel(rule.type) : '不限制';
+                    
+                    // Build constraints info
+                    let constraints = [];
+                    if (rule.min !== undefined && rule.min !== null) constraints.push(`最小值: ${rule.min}`);
+                    if (rule.max !== undefined && rule.max !== null) constraints.push(`最大值: ${rule.max}`);
+                    if (rule.min_length !== undefined && rule.min_length !== null) constraints.push(`最小长度: ${rule.min_length}`);
+                    if (rule.max_length !== undefined && rule.max_length !== null) constraints.push(`最大长度: ${rule.max_length}`);
+                    
+                    return `
+                        <div class="field-detail-card">
+                            <div class="field-detail-header">
+                                <div class="field-index">#${index + 1}</div>
+                                <div class="field-name-section">
+                                    <span class="field-name">${escapeHtml(field.display_name)}</span>
+                                    <div class="field-badges">
+                                        <span class="field-type-badge-modal">${typeLabel || '不限制'}</span>
+                                        ${rule.required ? '<span class="field-required-badge-modal">必填</span>' : '<span class="field-optional-badge-modal">可选</span>'}
+                                    </div>
+                                </div>
+                            </div>
+                            ${constraints.length > 0 ? `
+                                <div class="field-constraints">
+                                    <div class="constraints-title">📏 校验规则</div>
+                                    <div class="constraints-list">
+                                        ${constraints.map(c => `<span class="constraint-item">${c}</span>`).join('')}
+                                    </div>
+                                </div>
+                            ` : ''}
                         </div>
-                        <div class="field-detail-info">
-                            <span class="field-detail-type">${getFieldTypeLabel(field.data_type)}</span>
-                        </div>
-                    </div>
-                `).join('');
+                    `;
+                }).join('');
             }
 
             document.getElementById('fieldDetailModal').style.display = 'flex';
@@ -505,8 +620,8 @@ const TemplatesPage = (() => {
                 result.fields.forEach(field => {
                     addField({
                         display_name: field.display_name,
-                        data_type: field.data_type,
-                        required: field.required
+                        validation_rule: field.validation_rule,
+                        ord: field.ord
                     });
                 });
             }
@@ -583,6 +698,114 @@ const TemplatesPage = (() => {
         document.getElementById('templateFormModal').style.display = 'none';
         editingTemplateId = null;
         currentTemplate = null;
+        // Ensure nested validation modal is closed if open
+        try { TemplatesPage.closeValidationModal(); } catch(e) {}
+    }
+
+    // ==================== Validation Modal ====================
+    let currentValidationEditingFieldId = null;
+    function openValidationModal(fieldId) {
+        currentValidationEditingFieldId = fieldId;
+        const hidden = document.getElementById(`field_validation_${fieldId}`);
+        const raw = hidden ? (hidden.value || '') : '';
+        let rule = null;
+        if (raw) {
+            try { rule = JSON.parse(raw); } catch (e) { rule = null; }
+        }
+        // Populate fields
+        document.getElementById('validationTypeSelect').value = rule && rule.type ? rule.type : '';
+        document.getElementById('validationRequired').checked = rule && rule.required;
+        document.getElementById('validationMin').value = rule && rule.min != null ? rule.min : '';
+        document.getElementById('validationMax').value = rule && rule.max != null ? rule.max : '';
+        document.getElementById('validationMinLen').value = rule && rule.min_length != null ? rule.min_length : '';
+        document.getElementById('validationMaxLen').value = rule && rule.max_length != null ? rule.max_length : '';
+        // Initialize hint visibility for date/datetime
+        try { document.getElementById('dateHint').style.display = 'none'; } catch(e) {}
+        try { document.getElementById('datetimeHint').style.display = 'none'; } catch(e) {}
+        document.getElementById('validationRuleModal').style.display = 'flex';
+        // ensure type-specific fields visibility are updated
+        // Avoid duplicate listeners: remove if present then add
+        try { document.getElementById('validationTypeSelect').removeEventListener('change', onValidationTypeChange); } catch(e) {}
+        document.getElementById('validationTypeSelect').addEventListener('change', onValidationTypeChange);
+        onValidationTypeChange();
+        // Reflect existing values onto the field row badges
+        const fieldItemRow = document.querySelector(`[data-field-id="${fieldId}"]`);
+        if (fieldItemRow) {
+            const typeBadge = fieldItemRow.querySelector('.field-type-badge');
+            const requiredBadge = fieldItemRow.querySelector('.required-badge');
+            // Type badge: always show, default to "（不限制）" if no type
+            if (typeBadge) {
+                const typeLabel = rule && rule.type ? getFieldTypeLabel(rule.type) : '';
+                typeBadge.textContent = typeLabel || '（不限制）';
+            }
+            // Required badge: only show if required=true, otherwise hide completely
+            if (requiredBadge) {
+                if (rule && rule.required) {
+                    requiredBadge.style.display = 'inline-block';
+                    requiredBadge.textContent = '必填';
+                } else {
+                    requiredBadge.style.display = 'none';
+                    requiredBadge.textContent = '';
+                }
+            }
+        }
+    }
+
+    function closeValidationModal() {
+        currentValidationEditingFieldId = null;
+        document.getElementById('validationRuleModal').style.display = 'none';
+    }
+
+    function saveValidationRule() {
+        const ttype = document.getElementById('validationTypeSelect').value;
+        const trequired = document.getElementById('validationRequired').checked;
+        // Collect only visible values by type
+        const tmin = (ttype === 'INTEGER' || ttype === 'FLOAT') ? document.getElementById('validationMin').value : '';
+        const tmax = (ttype === 'INTEGER' || ttype === 'FLOAT') ? document.getElementById('validationMax').value : '';
+        const tminlen = (ttype === 'TEXT') ? document.getElementById('validationMinLen').value : '';
+        const tmaxlen = (ttype === 'TEXT') ? document.getElementById('validationMaxLen').value : '';
+        let content = '';
+        if (currentValidationEditingFieldId === null || currentValidationEditingFieldId === undefined) {
+            alert('未选择字段');
+            return;
+        }
+        // validate as JSON
+        let rule = null;
+        if (ttype || trequired || tmin || tmax || tminlen || tmaxlen) {
+            rule = { required: !!trequired };
+            if (ttype) rule.type = ttype;
+            if (tmin !== '') rule.min = parseFloat(tmin);
+            if (tmax !== '') rule.max = parseFloat(tmax);
+            if (tminlen !== '') rule.min_length = parseInt(tminlen);
+            if (tmaxlen !== '') rule.max_length = parseInt(tmaxlen);
+            // No regex/options allowed in this frontend modal; advanced rules may be backend-only
+        }
+        const hidden = document.getElementById(`field_validation_${currentValidationEditingFieldId}`);
+        if (hidden) {
+            hidden.value = rule ? JSON.stringify(rule) : '';
+        }
+        // Update badges in the field-line (always update, regardless of summary element)
+        const fieldItem = document.querySelector(`[data-field-id="${currentValidationEditingFieldId}"]`);
+        if (fieldItem) {
+            const typeBadge = fieldItem.querySelector('.field-type-badge');
+            const requiredBadge = fieldItem.querySelector('.required-badge');
+            // Type badge: always show, default to "（不限制）" if no type
+            if (typeBadge) {
+                const typeLabel = rule && rule.type ? getFieldTypeLabel(rule.type) : '';
+                typeBadge.textContent = typeLabel || '（不限制）';
+            }
+            // Required badge: only show if required=true, otherwise hide completely
+            if (requiredBadge) {
+                if (rule && rule.required) {
+                    requiredBadge.style.display = 'inline-block';
+                    requiredBadge.textContent = '必填';
+                } else {
+                    requiredBadge.style.display = 'none';
+                    requiredBadge.textContent = '';
+                }
+            }
+        }
+        closeValidationModal();
     }
 
     // ==================== 字段管理 ====================
@@ -603,21 +826,14 @@ const TemplatesPage = (() => {
                 <input type="text" class="form-input" name="field_name_${fieldId}" 
                        placeholder="字段名称" required maxlength="100"
                        value="${fieldData ? escapeHtml(fieldData.display_name) : ''}">
-                <select class="form-select" name="field_type_${fieldId}" required>
-                    ${fieldTypes.map(type => `
-                        <option value="${type.value}" ${fieldData && fieldData.data_type === type.value ? 'selected' : ''}>
-                            ${type.label}
-                        </option>
-                    `).join('')}
-                </select>
-                <div class="form-checkbox-wrapper">
-                    <input type="checkbox" id="field_required_${fieldId}" name="field_required_${fieldId}"
-                           class="form-checkbox-input" ${fieldData && fieldData.required ? 'checked' : ''}>
-                    <label for="field_required_${fieldId}" class="form-checkbox-label">
-                        <span class="checkbox-box"></span>
-                        <span class="checkbox-text">必填</span>
-                    </label>
-                </div>
+                <span class="field-type-badge" style="background-color: #DBEAFE; color: #1E40AF; border: 1px solid #93C5FD; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; display: inline-block; min-width: 60px; text-align: center;">
+                    ${fieldData && fieldData.validation_rule && fieldData.validation_rule.type ? getFieldTypeLabel(fieldData.validation_rule.type) : '（不限制）'}
+                </span>
+                <span class="required-badge" style="background-color: #FEE2E2; color: #991B1B; border: 1px solid #FCA5A5; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; margin-left: 8px; display: ${fieldData && fieldData.validation_rule && fieldData.validation_rule.required ? 'inline-block' : 'none'};">
+                    ${fieldData && fieldData.validation_rule && fieldData.validation_rule.required ? '必填' : ''}
+                </span>
+                <button type="button" class="btn-secondary" id="rule_btn_${fieldId}" onclick="TemplatesPage.openValidationModal(${fieldId})">设置校验规则</button>
+                <input type="hidden" id="field_validation_${fieldId}" name="field_validation_${fieldId}" value='${fieldData && fieldData.validation_rule ? JSON.stringify(fieldData.validation_rule) : ''}'>
                 <button type="button" class="field-control-btn delete" onclick="TemplatesPage.removeField(${fieldId})" title="删除字段">
                     ×
                 </button>
@@ -731,8 +947,17 @@ const TemplatesPage = (() => {
         fieldItems.forEach((item, index) => {
             const fieldId = item.dataset.fieldId;
             const fieldName = document.querySelector(`[name="field_name_${fieldId}"]`).value.trim();
-            const fieldType = document.querySelector(`[name="field_type_${fieldId}"]`).value;
-            const fieldRequired = document.querySelector(`[name="field_required_${fieldId}"]`).checked;
+            const validationHidden = document.getElementById(`field_validation_${fieldId}`);
+            let fieldValidation = null;
+            if (validationHidden && validationHidden.value) {
+                try {
+                    fieldValidation = JSON.parse(validationHidden.value);
+                } catch (err) {
+                    alert('字段校验规则 JSON 解析失败: ' + err.message);
+                    hasError = true;
+                    return;
+                }
+            }
 
             if (!fieldName) {
                 alert(`第 ${index + 1} 个字段的名称不能为空`);
@@ -742,8 +967,7 @@ const TemplatesPage = (() => {
 
             fields.push({
                 display_name: fieldName,
-                data_type: fieldType,
-                required: fieldRequired,
+                validation_rule: fieldValidation,
                 ord: index  // 直接使用index作为ord，从0开始
             });
         });
@@ -810,8 +1034,35 @@ const TemplatesPage = (() => {
     }
 
     function getFieldTypeLabel(type) {
+        if (!type) return '（不限制）';
         const typeObj = fieldTypes.find(t => t.value === type);
-        return typeObj ? typeObj.label : type;
+        // For backend-only or unrecognized types (EMAIL/EMPLOYEE_ID etc.) do not display on the frontend
+        return typeObj ? typeObj.label : '';
+    }
+
+    // Show/hide details in Validation modal based on selected type
+    function onValidationTypeChange() {
+        const type = document.getElementById('validationTypeSelect').value;
+        const numericGroups = document.querySelectorAll('.numeric-group');
+        const textGroups = document.querySelectorAll('.text-group');
+        const dateHint = document.getElementById('dateHint');
+        const datetimeHint = document.getElementById('datetimeHint');
+
+        // Hide all groups first
+        numericGroups.forEach(n => n.style.display = 'none');
+        textGroups.forEach(t => t.style.display = 'none');
+
+        if (type === 'INTEGER' || type === 'FLOAT') {
+            numericGroups.forEach(n => n.style.display = 'block');
+        }
+
+        if (type === 'TEXT') {
+            textGroups.forEach(t => t.style.display = 'block');
+        }
+        // date/datetime hints
+        if (dateHint) dateHint.style.display = (type === 'DATE') ? 'block' : 'none';
+        if (datetimeHint) datetimeHint.style.display = (type === 'DATETIME') ? 'block' : 'none';
+        // For email/phone/id/employee/date/datetime/boolean: no extra fields shown except required
     }
 
     // ==================== 公开接口 ====================
@@ -830,6 +1081,9 @@ const TemplatesPage = (() => {
         addField,
         removeField,
         saveTemplate,
+        openValidationModal,
+        closeValidationModal,
+        saveValidationRule,
         deleteTemplate
     };
 })();

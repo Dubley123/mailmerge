@@ -5,6 +5,8 @@ Encapsulates business logic for task management, including aggregation and statu
 import os
 import tempfile
 import pandas as pd
+import re
+from datetime import datetime
 from sqlalchemy.orm import Session
 from backend.database.models import (
     CollectTask, TemplateForm, TemplateFormField, 
@@ -27,6 +29,8 @@ def perform_aggregation(db: Session, task: CollectTask, user_id: int) -> dict:
         TemplateFormField.form_id == template.id
     ).order_by(TemplateFormField.ord).all()
     template_headers = [f.display_name for f in template_fields]
+    # Map header -> validation rule JSON (None if not set)
+    header_validation_map = {f.display_name: f.validation_rule for f in template_fields}
 
     # Collect received emails with attachments
     received_emails = db.query(ReceivedEmail).filter(
@@ -41,6 +45,7 @@ def perform_aggregation(db: Session, task: CollectTask, user_id: int) -> dict:
     rows = []
     warnings = []
     processed_received_ids = []
+    validation_issue_map = {}  # teacher_id -> list of {field, reason}
 
     try:
         for r in received_emails:
@@ -105,6 +110,19 @@ def perform_aggregation(db: Session, task: CollectTask, user_id: int) -> dict:
                     row_values.append(val)
                 else:
                     row_values.append(None)
+                # Validation: if validation_rule exists, validate the value
+                rule = header_validation_map.get(header)
+                if rule:
+                    ok, reason = _validate_value(val, rule)
+                    if not ok:
+                        # use teacher id if available, otherwise received email id
+                        teacher_id = getattr(r, 'from_tea_id', None)
+                        key_id = str(teacher_id) if teacher_id else f"rec_{r.id}"
+                        validation_issue_map.setdefault(key_id, []).append({
+                            'field': header,
+                            'reason': reason,
+                            'value': None if pd.isna(val) else str(val)
+                        })
 
             rows.append(row_values)
             processed_received_ids.append(r.id)
@@ -146,6 +164,8 @@ def perform_aggregation(db: Session, task: CollectTask, user_id: int) -> dict:
             agg.generated_by = user_id
             agg.generated_at = get_utc_now()
             agg.record_count = len(out_df)
+            agg.has_validation_issues = True if validation_issue_map else False
+            agg.validation_errors = validation_issue_map if validation_issue_map else None
         else:
             # Create new record
             agg = Aggregation(
@@ -153,7 +173,9 @@ def perform_aggregation(db: Session, task: CollectTask, user_id: int) -> dict:
                 name=f"{task.name}_汇总表",
                 generated_by=user_id,
                 record_count=len(out_df),
-                file_path=""
+                file_path="",
+                has_validation_issues=True if validation_issue_map else False,
+                validation_errors=validation_issue_map if validation_issue_map else None
             )
             db.add(agg)
         
@@ -186,6 +208,152 @@ def perform_aggregation(db: Session, task: CollectTask, user_id: int) -> dict:
                     os.remove(f)
             except Exception:
                 pass
+
+
+def _validate_value(value, rule: dict):
+        """
+        Validate a single value against a rule dict.
+        Returns: (True, None) if passed; (False, reason) if failed
+        """
+        # Normalize
+        if rule is None:
+            return True, None
+
+        required = bool(rule.get('required', False))
+        vtype = (rule.get('type') or '').upper() if rule.get('type') else None
+
+        # None/empty checks
+        if value is None or (isinstance(value, str) and value.strip() == ''):
+            if required:
+                return False, 'Required field is empty'
+            return True, None
+
+        # Strings: strip
+        if isinstance(value, str):
+            vstr = value.strip()
+        else:
+            vstr = None
+
+        # TYPE checks
+        try:
+            if vtype in (None, 'TEXT'):
+                # length checks
+                if vstr is not None:
+                    if 'min_length' in rule and len(vstr) < int(rule['min_length']):
+                        return False, f"Length smaller than {rule['min_length']}"
+                    if 'max_length' in rule and len(vstr) > int(rule['max_length']):
+                        return False, f"Length greater than {rule['max_length']}"
+                return True, None
+
+            if vtype == 'INTEGER':
+                try:
+                    if isinstance(value, float) and not float(value).is_integer():
+                        return False, 'Not an integer'
+                    int(value)
+                except Exception:
+                    return False, 'Not a valid integer'
+                return True, None
+
+            if vtype == 'FLOAT':
+                try:
+                    float(value)
+                except Exception:
+                    return False, 'Not a valid float/number'
+                return True, None
+
+            if vtype == 'NUMBER':
+                # Legacy: accept integer or float
+                try:
+                    num = float(value)
+                except Exception:
+                    return False, 'Not a valid number'
+                if 'min' in rule and num < float(rule['min']):
+                    return False, f"Below minimum {rule['min']}"
+                if 'max' in rule and num > float(rule['max']):
+                    return False, f"Above maximum {rule['max']}"
+                return True, None
+
+            if vtype in ('DATE', 'DATETIME'):
+                try:
+                    # Use pandas to parse
+                    import pandas as _pd
+                    dt = _pd.to_datetime(value, errors='coerce')
+                    if pd.isna(dt):
+                        return False, 'Not a valid date/datetime'
+                except Exception:
+                    return False, 'Not a valid date/datetime'
+                return True, None
+
+            if vtype == 'BOOLEAN':
+                if isinstance(value, bool):
+                    return True, None
+                if isinstance(value, (int, float)):
+                    return True, None
+                if isinstance(value, str):
+                    if vstr.lower() in ['true', 'false', 'yes', 'no', '是', '否', '1', '0']:
+                        return True, None
+                return False, 'Not a valid boolean value'
+
+            if vtype == 'EMAIL':
+                email_re = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+                if isinstance(value, str) and email_re.match(value.strip()):
+                    return True, None
+                return False, 'Not a valid email address'
+
+            if vtype == 'PHONE':
+                # Chinese mobile basic validation
+                phone_re = re.compile(r"^1[3-9]\d{9}$")
+                if isinstance(value, str) and phone_re.match(value.strip()):
+                    return True, None
+                return False, 'Not a valid phone number'
+
+            if vtype == 'ID_CARD':
+                # Chinese ID: 15 or 18 characters (last digit can be X/x)
+                if isinstance(value, (int, float)):
+                    s = str(int(value))
+                else:
+                    s = str(value).strip()
+                if re.fullmatch(r"\d{15}|\d{17}[\dXx]", s):
+                    return True, None
+                return False, 'Not a valid ID card number'
+
+            if vtype == 'EMPLOYEE_ID' or vtype == 'ID' or vtype == 'EMP_ID':
+                # allow 5-20 chars alnum
+                if isinstance(value, (int, float)):
+                    s = str(int(value))
+                else:
+                    s = str(value).strip()
+                if re.fullmatch(r"\d{10}", s):
+                    return True, None
+                return False, 'Not a valid employee/id value'
+
+            # Options constraint (if present) - regardless of type
+            if 'options' in rule and rule.get('options'):
+                opts = rule.get('options') or []
+                if isinstance(value, str) and ',' in value:
+                    vals = [v.strip() for v in str(value).split(',') if v.strip()]
+                    for vv in vals:
+                        if opts and vv not in opts:
+                            return False, f"Value '{vv}' not in allowed options"
+                else:
+                    if opts and str(value).strip() not in opts:
+                        return False, f"Value not in allowed options: {opts}"
+                return True, None
+
+            # regex check
+            if 'regex' in rule:
+                try:
+                    rx = re.compile(rule['regex'])
+                    if isinstance(value, str) and rx.match(value.strip()):
+                        return True, None
+                    return False, 'Regex mismatch'
+                except Exception:
+                    return False, 'Invalid regex in rule'
+
+            # default allow
+            return True, None
+        except Exception as ex:
+            return False, f'Validation error: {str(ex)}'
 
 
 def check_task_status(task: CollectTask, db: Session):

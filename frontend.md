@@ -472,7 +472,7 @@
 
 - TemplateFormField 表：
   - 根据模板 id 查询字段信息，用于字段详情弹窗：
-    - id, form_id, display_name, data_type, required, ord
+    - id, form_id, display_name, validation_rule, ord
 
 ------
 
@@ -480,7 +480,7 @@
 
 - 查询 TemplateFormField 表：
   - form_id = 选中模板 id
-  - 返回 display_name、data_type、required、ord
+  - 返回 display_name、validation_rule、ord
 - 按 ord 排序显示
 
 ------
@@ -493,8 +493,8 @@
    - extra = 可选扩展信息
 
 2. 写入 TemplateFormField 表：
-   - form_id = 新建 TemplateForm ID
-   - display_name / data_type / required / ord
+  - form_id = 新建 TemplateForm ID
+  - display_name / validation_rule / ord
    - 可循环插入多个字段记录
 
 ------
@@ -505,7 +505,7 @@
 - 更新 TemplateForm.name 或 extra
 - 更新 TemplateFormField：
   - 可新增字段
-  - 可修改已有字段 display_name / data_type / required / ord
+  - 可修改已有字段 display_name / validation_rule / ord
   - 可删除字段
 
 ------

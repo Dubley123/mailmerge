@@ -18,7 +18,7 @@ from backend.database.models import (
     Base, Department, Teacher, Secretary, TemplateForm, TemplateFormField,
     CollectTask, CollectTaskTarget, SentAttachment, SentEmail,
     ReceivedAttachment, ReceivedEmail, Aggregation,
-    DataType, EmailStatus, TaskStatus
+    EmailStatus, TaskStatus
 )
 from backend.database.db_config import get_engine, get_session_factory
 from backend.storage_service import ensure_minio_running
@@ -220,17 +220,18 @@ def load_default_data(session, data_file: str):
             
             form_id = template_id_map[form_index]
             
-            # Convert data_type string to enum
-            from backend.database.models import DataType
-            data_type_str = field_data.get('data_type', 'TEXT')
-            data_type = DataType[data_type_str] if hasattr(DataType, data_type_str) else DataType.TEXT
-            
+            # Strict new-format: require `validation_rule` key in the field data
+            if 'validation_rule' not in field_data:
+                raise ValueError("template_form_fields must include 'validation_rule' for each field under new schema. Please update default data to use `validation_rule`.")
+            # Do not allow legacy keys: force strict new schema
+            if 'data_type' in field_data or 'required' in field_data:
+                raise ValueError("Legacy fields 'data_type' or 'required' are not allowed under new schema. Use 'validation_rule' instead.")
+            validation_rule = field_data.get('validation_rule')
             field = TemplateFormField(
                 form_id=form_id,
                 ord=field_data.get('ord', 0),
                 display_name=field_data['display_name'],
-                data_type=data_type,
-                required=field_data.get('required', False),
+                validation_rule=validation_rule,
             )
             session.add(field)
         session.commit()

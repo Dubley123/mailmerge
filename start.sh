@@ -9,6 +9,11 @@ echo "🔧 激活虚拟环境..."
 echo ""
 source .venv/bin/activate
 
+# 更新前端静态文件版本号（基于文件哈希）
+echo "📦 更新前端资源版本..."
+python3 frontend/update_versions.py
+echo ""
+
 # 通用提示
 echo "🚀 启动 MailMerge 系统..."
 echo "  📍 前端地址: http://localhost:8000"

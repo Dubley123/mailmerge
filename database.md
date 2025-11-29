@@ -96,8 +96,7 @@
 | form_id      | BIGINT                                                       | NOT NULL, FOREIGN KEY → TemplateForm(id)                     | 关联模板 ID                             |
 | ord          | INT                                                          | NOT NULL, DEFAULT 0                                          | 字段顺序，用于生成表格的列顺序          |
 | display_name | VARCHAR(100)                                                 | NOT NULL                                                     | Excel 上展示的名称                      |
-| data_type    | ENUM('TEXT', 'NUMBER', 'DATE', 'DATETIME', 'BOOLEAN', 'SINGLE_SELECT', 'MULTI_SELECT') | NOT NULL, DEFAULT 'TEXT'                                     | 字段类型，枚举类型，TEXT 可输入任意信息 |
-| required     | BOOLEAN                                                      | NOT NULL, DEFAULT FALSE                                      | 是否必填字段                            |
+| validation_rule | JSON                                                    | NULL                                                         | 字段校验规则，JSON 格式，统一描述字段的 required/type/constraints |
 | extra        | JSON                                                         | NULL                                                         | 扩展字段                                |
 | created_at   | DATETIME                                                     | NOT NULL, DEFAULT CURRENT_TIMESTAMP                          | 创建时间                                |
 | updated_at   | DATETIME                                                     | NOT NULL, DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | 更新时间                                |
@@ -227,6 +226,8 @@
 | generated_by | BIGINT       | NULL, FOREIGN KEY → Secretary(id)                            | 执行汇总操作的教秘 ID             |
 | generated_at | DATETIME     | NOT NULL, DEFAULT CURRENT_TIMESTAMP                          | 汇总生成时间                      |
 | record_count | INT          | NULL                                                         | 本次汇总的记录条数                |
+| has_validation_issues | BOOLEAN | NOT NULL, DEFAULT FALSE                                    | 本次汇总是否包含校验失败的记录    |
+| validation_errors | JSON      | NULL                                                         | 校验失败详情，JSON 格式（以 teacher_id 为 key） |
 | file_path    | TEXT         | NOT NULL                                                     | 汇总生成文件路径（S3 或本地路径） |
 | extra        | JSON         | NULL                                                         | 扩展字段，例如备注、描述等        |
 | created_at   | DATETIME     | NOT NULL, DEFAULT CURRENT_TIMESTAMP                          | 创建时间                          |

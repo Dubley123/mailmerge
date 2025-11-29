@@ -9,14 +9,18 @@ from typing import List, Optional
 from datetime import datetime
 import openpyxl
 from openpyxl.cell import Cell
+from openpyxl.worksheet.datavalidation import DataValidation
 import io
 from backend.utils import ensure_utc
 
 from backend.database.db_config import get_db_session
-from backend.database.models import TemplateForm, TemplateFormField, Secretary, DataType
+from backend.database.models import TemplateForm, TemplateFormField, Secretary
 from backend.api.auth import get_current_user
 
 router = APIRouter()
+
+# Allowed validation types for `validation_rule.type`
+ALLOWED_TYPES = {'TEXT','INTEGER','FLOAT','DATE','DATETIME','BOOLEAN','EMAIL','PHONE','ID_CARD','EMPLOYEE_ID'}
 
 
 # ==================== Pydantic 模型 ====================
@@ -24,17 +28,18 @@ router = APIRouter()
 class FieldRequest(BaseModel):
     """字段请求"""
     display_name: str = Field(..., min_length=1, max_length=100)
-    data_type: str = Field(..., description="字段类型：TEXT/NUMBER/DATE/TIME/BOOLEAN/RADIO/CHECKBOX")
-    required: bool = False
+    # validation_rule JSON: see FieldResponse.validation_rule for structure
+    validation_rule: Optional[dict] = None
     ord: int = Field(..., ge=0, description="字段顺序")
+    class Config:
+        extra = 'forbid'
 
 
 class FieldResponse(BaseModel):
     """字段响应"""
     id: int
     display_name: str
-    data_type: str
-    required: bool
+    validation_rule: Optional[dict] = None
     ord: int
 
 
@@ -61,6 +66,8 @@ class CreateTemplateRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     description: Optional[str] = None
     fields: List[FieldRequest] = Field(..., min_items=1, description="至少包含一个字段")
+    class Config:
+        extra = 'forbid'
 
 
 class UpdateTemplateRequest(BaseModel):
@@ -68,6 +75,8 @@ class UpdateTemplateRequest(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=100)
     description: Optional[str] = None
     fields: Optional[List[FieldRequest]] = None
+    class Config:
+        extra = 'forbid'
 
 
 # ==================== API 路由 ====================
@@ -145,8 +154,7 @@ async def get_template_detail(
             FieldResponse(
                 id=field.id,
                 display_name=field.display_name,
-                data_type=field.data_type.value,
-                required=field.required,
+                validation_rule=field.validation_rule,
                 ord=field.ord
             )
             for field in fields
@@ -189,19 +197,17 @@ async def create_template(
         
         # 创建字段
         for field_data in request.fields:
-            try:
-                data_type_enum = DataType(field_data.data_type.upper())
-            except ValueError:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"无效的字段类型: {field_data.data_type}"
-                )
-            
+            # Validate validation_rule if provided
+            if field_data.validation_rule is not None and isinstance(field_data.validation_rule, dict):
+                vtype = field_data.validation_rule.get('type')
+                if vtype is not None and not isinstance(vtype, str):
+                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"validation_rule.type must be a string")
+                if vtype and vtype.upper() not in ALLOWED_TYPES:
+                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid validation_rule.type: {vtype}")
             new_field = TemplateFormField(
                 form_id=new_template.id,
                 display_name=field_data.display_name,
-                data_type=data_type_enum,
-                required=field_data.required,
+                validation_rule=field_data.validation_rule,
                 ord=field_data.ord
             )
             db.add(new_field)
@@ -281,19 +287,17 @@ async def update_template(
             
             # 添加新字段
             for field_data in request.fields:
-                try:
-                    data_type_enum = DataType(field_data.data_type.upper())
-                except ValueError:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=f"无效的字段类型: {field_data.data_type}"
-                    )
-                
+                # Validate validation_rule if provided
+                if field_data.validation_rule is not None and isinstance(field_data.validation_rule, dict):
+                    vtype = field_data.validation_rule.get('type')
+                    if vtype is not None and not isinstance(vtype, str):
+                        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"validation_rule.type must be a string")
+                    if vtype and vtype.upper() not in ALLOWED_TYPES:
+                        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid validation_rule.type: {vtype}")
                 new_field = TemplateFormField(
                     form_id=template_id,
                     display_name=field_data.display_name,
-                    data_type=data_type_enum,
-                    required=field_data.required,
+                    validation_rule=field_data.validation_rule,
                     ord=field_data.ord
                 )
                 db.add(new_field)
@@ -393,13 +397,11 @@ async def parse_excel(
                 
             field_name = str(cell.value).strip()
             
-            # 尝试推断字段类型
-            data_type = infer_field_type(sheet, idx + 1)
-            
+            # 提取 DataValidation 规则（只当 Excel 中有规则才返回），否则 None
+            validation_rule = extract_column_validation(sheet, idx + 1)
             fields.append({
                 'display_name': field_name,
-                'data_type': data_type,
-                'required': False,
+                'validation_rule': validation_rule,
                 'ord': idx
             })
         
@@ -447,7 +449,9 @@ def infer_field_type(sheet, column_index: int) -> str:
     # 检查是否所有样本都是数字
     all_numbers = all(_is_number(cell.value) for cell in samples)
     if all_numbers:
-        return 'NUMBER'
+        # Check whether all are integers
+        all_int = all(float(cell.value).is_integer() for cell in samples)
+        return 'INTEGER' if all_int else 'FLOAT'
     
     # 检查是否有日期格式
     has_date = any(_is_date_cell(cell) for cell in samples)
@@ -471,6 +475,101 @@ def infer_field_type(sheet, column_index: int) -> str:
         return 'RADIO'
     
     return default_type
+
+
+def extract_column_validation(sheet, column_index: int) -> dict:
+    """
+    Extract a validation_rule dict from openpyxl sheet for a column (based on header cell/column validations)
+    Returns a validation_rule JSON structure or None
+    """
+    rule = None
+
+    try:
+        dv_list = list(sheet.data_validations.dataValidation) if sheet.data_validations is not None else []
+        # Look for a validation that targets rows in this column (we expect sqref to contain column like 'A:A' or 'A2:A100')
+        for dv in dv_list:
+            if not dv.sqref:
+                continue
+            ranges = []
+            # openpyxl may store sqref as e.g. 'A1:A100' or 'A:A'
+            for r in str(dv.sqref).split():
+                ranges.append(r)
+            for r in ranges:
+                # Only check simple column ranges like A, A:A, A1:A100
+                if r.startswith(' '):
+                    r = r.strip()
+                # Get column letter for first cell in range
+                if ':' in r:
+                    start_cell = r.split(':')[0]
+                else:
+                    start_cell = r
+                # Extract column letter(s)
+                col_letter = ''.join(ch for ch in start_cell if ch.isalpha())
+                if not col_letter:
+                    continue
+                # Convert column letter to index
+                from openpyxl.utils import column_index_from_string
+                try:
+                    dv_col_index = column_index_from_string(col_letter)
+                except Exception:
+                    continue
+                if dv_col_index != column_index:
+                    continue
+
+                # Found a DataValidation for this column
+                # Map validation types
+                vtype = (dv.type or '').lower()
+                if vtype == 'list':
+                    # formula1 may be a quoted comma list or a range; handle simple quoted list
+                    formula = dv.formula1 or ''
+                    opts = []
+                    if formula.startswith('"') and formula.endswith('"'):
+                        inner = formula.strip('"')
+                        opts = [s.strip() for s in inner.split(',') if s.strip()]
+                    # Do not create SELECT type; keep TEXT with options
+                    rule = rule or {}
+                    rule['type'] = 'TEXT'
+                    if opts:
+                        rule['options'] = opts
+                elif vtype in ('whole', 'decimal'):
+                    rule = rule or {}
+                    # 'whole' -> INTEGER, 'decimal' -> FLOAT
+                    rule['type'] = 'INTEGER' if vtype == 'whole' else 'FLOAT'
+                    if dv.formula1:
+                        try:
+                            rule['min'] = float(dv.formula1)
+                        except Exception:
+                            pass
+                    if dv.formula2:
+                        try:
+                            rule['max'] = float(dv.formula2)
+                        except Exception:
+                            pass
+                elif vtype == 'date':
+                    rule = rule or {}
+                    rule['type'] = 'DATE'
+                    # We won't parse min/max here; leave as type
+                elif vtype == 'textLength':
+                    rule = rule or {}
+                    rule['type'] = 'TEXT'
+                    if dv.operator in ('between',):
+                        try:
+                            rule['min_length'] = int(dv.formula1)
+                            rule['max_length'] = int(dv.formula2)
+                        except Exception:
+                            pass
+                elif vtype == 'custom':
+                    # For custom we may have formula like =ISNUMBER(SEARCH("@",A2)) etc — leave it as custom regex not parsed
+                    rule = rule or {}
+                    rule.setdefault('extra', {})['custom_formula'] = dv.formula1
+                # We don't set required since Excel doesn't have explicit required VIA DataValidation
+                # Break after first match
+                return rule
+    except Exception:
+        pass
+
+    # If we did not find any relevant DataValidation for this column, return None to indicate no rule
+    return rule
 
 
 def _is_number(value) -> bool:

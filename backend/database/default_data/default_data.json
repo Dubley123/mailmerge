@@ -85,14 +85,14 @@
       "phone": "13801010101"
     },
     {
-      "id": 2023200144,
+      "id": 2023202289,
       "name": "刘曜嘉",
       "department_name": "信息学院",
-      "username": "liuyaojia",
-      "account": "ruc2023200144",
+      "username": "frankmangod",
+      "account": "ruc2023202289",
       "password": "123456",
-      "email": "liuyaojia@example.com",
-      "phone": "13801010102"
+      "email": "212640362@qq.com",
+      "phone": "18601003260"
     }
   ],
   "template_forms": [
@@ -107,29 +107,38 @@
       "form_index": 0,
       "ord": 1,
       "display_name": "教师名称",
-      "data_type": "TEXT",
-      "required": true
+      "validation_rule": {
+        "required": true,
+        "type": "TEXT",
+        "min_length": 1,
+        "max_length": 64
+      }
     },
     {
       "form_index": 0,
       "ord": 2,
       "display_name": "教师工号",
-      "data_type": "NUMBER",
-      "required": true
+      "validation_rule": {
+        "required": true,
+        "type": "EMPLOYEE_ID",
+        "regex": "^[0-9]{10}$"
+      }
     },
     {
       "form_index": 0,
       "ord": 3,
       "display_name": "教师电话号码",
-      "data_type": "TEXT",
-      "required": false
+      "validation_rule": null
     },
     {
       "form_index": 0,
       "ord": 4,
       "display_name": "本学期教授课程数量",
-      "data_type": "NUMBER",
-      "required": true
+      "validation_rule": {
+        "required": true,
+        "type": "INTEGER",
+        "min": 0
+      }
     }
   ],
   "collect_tasks": [

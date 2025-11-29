@@ -17,15 +17,8 @@ Base = declarative_base()
 
 
 # Enums
-class DataType(enum.Enum):
-    """Template field data types"""
-    TEXT = "TEXT"
-    NUMBER = "NUMBER"
-    DATE = "DATE"
-    DATETIME = "DATETIME"
-    BOOLEAN = "BOOLEAN"
-    SINGLE_SELECT = "SINGLE_SELECT"
-    MULTI_SELECT = "MULTI_SELECT"
+# Legacy: DataType enum removed in favor of JSON `validation_rule` on TemplateFormField.
+# Keep enum removal intentional: all places should now use validation_rule JSON instead.
 
 
 class EmailStatus(enum.Enum):
@@ -157,8 +150,19 @@ class TemplateFormField(Base):
     form_id = Column(BigInteger, ForeignKey('template_form.id'), nullable=False, comment='关联模板 ID')
     ord = Column(Integer, nullable=False, default=0, comment='字段顺序')
     display_name = Column(String(100), nullable=False, comment='Excel 上展示的名称')
-    data_type = Column(SQLEnum(DataType), nullable=False, default=DataType.TEXT, comment='字段类型')
-    required = Column(Boolean, nullable=False, default=False, comment='是否必填字段')
+    # Note: use `validation_rule` JSON to store unified validation rules for the field
+    # Example:
+    # {
+    #   "required": true,
+    #   "type": "TEXT|INTEGER|FLOAT|DATE|DATETIME|BOOLEAN|EMAIL|PHONE|ID_CARD|EMPLOYEE_ID",
+    #   "min": 0,
+    #   "max": 100,
+    #   "min_length": 1,
+    #   "max_length": 100,
+    #   "regex": "^\\d{11}$",
+    #   "options": ["A","B"]
+    # }
+    validation_rule = Column(JSON, nullable=True, comment='字段校验规则，JSON 格式')
     extra = Column(JSON, nullable=True, comment='扩展字段')
     created_at = Column(DateTime(timezone=True), nullable=False, default=get_utc_now, comment='创建时间')
     updated_at = Column(DateTime(timezone=True), nullable=False, default=get_utc_now, 
@@ -345,6 +349,10 @@ class Aggregation(Base):
     generated_by = Column(BigInteger, ForeignKey('secretary.id'), nullable=True, comment='执行汇总操作的教秘 ID')
     generated_at = Column(DateTime(timezone=True), nullable=False, default=get_utc_now, comment='汇总生成时间')
     record_count = Column(Integer, nullable=True, comment='本次汇总的记录条数')
+    # 是否存在校验失败的记录
+    has_validation_issues = Column(Boolean, nullable=False, default=False, comment='本次汇总是否包含不合规记录')
+    # 以 teacher_id 为 key 的不合规详情，{ teacher_id: [{"field": "姓名", "reason": "手机号格式不正确"}, ...] }
+    validation_errors = Column(JSON, nullable=True, comment='校验失败详情，JSON 格式')
     file_path = Column(Text, nullable=False, comment='汇总生成文件路径')
     extra = Column(JSON, nullable=True, comment='扩展字段')
     created_at = Column(DateTime(timezone=True), nullable=False, default=get_utc_now, comment='创建时间')
