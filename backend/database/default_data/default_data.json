@@ -12,54 +12,54 @@
   ],
   "teachers": [
     {
-      "id": 2023200000,
-      "name": "张三",
+      "id": 2023200001,
+      "name": "测试教师1",
       "department_name": "财政金融学院",
-      "email": "zhangsan@example.com",
-      "phone": "13800138001",
+      "email": "2335681497@qq.com",
+      "phone": "10112345678",
       "title": "教授",
       "office": "A101"
     },
     {
-      "id": 2023200001,
-      "name": "李四",
+      "id": 2023200002,
+      "name": "测试教师2",
       "department_name": "财政金融学院",
-      "email": "lisi@example.com",
-      "phone": "13800138002",
+      "email": "2164137822@qq.com",
+      "phone": "10212345678",
       "title": "副教授"
     },
     {
-      "id": 2023200002,
-      "name": "王五",
+      "id": 2023200003,
+      "name": "测试教师3",
       "department_name": "财政金融学院",
-      "email": "wangwu@example.com",
-      "phone": "13800138003",
+      "email": "3255399729@qq.com",
+      "phone": "10312345678",
       "title": "讲师",
       "office": "B202"
     },
     {
-      "id": 2023201000,
-      "name": "周强",
+      "id": 2023200004,
+      "name": "测试教师4",
       "department_name": "信息学院",
       "email": "zhouqiang@example.com",
-      "phone": "13900139001",
-      "title": "讲师",
+      "phone": "10412345678",
+      "title": "教授",
       "office": "C101"
     },
     {
-      "id": 2023201001,
-      "name": "赵敏",
+      "id": 2023200005,
+      "name": "测试教师5",
       "department_name": "信息学院",
       "email": "zhaomin@example.com",
-      "phone": "13900139002",
-      "title": "助教"
+      "phone": "10512345678",
+      "title": "副教授"
     },
     {
-      "id": 2023201002,
-      "name": "陈凯",
+      "id": 2023200006,
+      "name": "测试教师6",
       "department_name": "信息学院",
       "email": "chenkai@example.com",
-      "phone": "13900139003",
+      "phone": "10612345678",
       "title": "讲师"
     }
   ],
@@ -68,21 +68,20 @@
       "id": 2023200142,
       "name": "冯欣钰",
       "department_name": "财政金融学院",
-      "username": "fengxinyu",
+      "username": "dubley",
       "account": "ruc2023200142",
       "password": "123456",
       "email": "2590684243@qq.com",
       "phone": "18707969203"
     },
     {
-      "id": 2023200143,
+      "id": 2023200195,
       "name": "王一轩",
       "department_name": "财政金融学院",
       "username": "wangyixuan",
-      "account": "ruc2023200143",
+      "account": "ruc2023200195",
       "password": "123456",
-      "email": "wangyixuan@example.com",
-      "phone": "13801010101"
+      "email": "602020147@qq.com"
     },
     {
       "id": 2023202289,
@@ -202,20 +201,20 @@
   ],
   "received_attachments": [
     {
-      "file_path": "minio://mailmerge/received_attachment/1/received_2023200000.xlsx",
-      "file_name": "received_2023200000.xlsx",
+      "file_path": "minio://mailmerge/received_attachment/1/received_2023200001.xlsx",
+      "file_name": "received_2023200001.xlsx",
       "content_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "file_size": 5789
     },
     {
-      "file_path": "minio://mailmerge/received_attachment/2/received_2023200001.xlsx",
-      "file_name": "received_2023200001.xlsx",
+      "file_path": "minio://mailmerge/received_attachment/2/received_2023200002.xlsx",
+      "file_name": "received_2023200002.xlsx",
       "content_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "file_size": 5801
     },
     {
-      "file_path": "minio://mailmerge/received_attachment/3/received_2023200002.xlsx",
-      "file_name": "received_2023200002.xlsx",
+      "file_path": "minio://mailmerge/received_attachment/3/received_2023200003.xlsx",
+      "file_name": "received_2023200003.xlsx",
       "content_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "file_size": 5823
     }

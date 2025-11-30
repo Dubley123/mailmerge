@@ -1,0 +1,288 @@
+<link rel="stylesheet" href="/frontend/static/css/mailbox.css?v=b82e96d2">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<div class="mailbox-container">
+    <!-- View 1: Task Folders -->
+    <div id="task-folders-view">
+        <h2 class="page-title">邮件箱</h2>
+        <div class="folder-view-container">
+            <div id="folder-grid" class="folder-grid">
+                <div class="loading-spinner">Loading tasks...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- View 2: Email Interface (Hidden by default) -->
+    <div id="email-interface-view" class="email-interface" style="display: none;">
+        <div class="email-header">
+            <div class="email-tabs">
+                <div class="email-tab active" data-type="received" onclick="MailboxUI.switchTab('received')">
+                    <i class="fas fa-inbox"></i> 收件箱
+                </div>
+                <div class="email-tab" data-type="sent" onclick="MailboxUI.switchTab('sent')">
+                    <i class="fas fa-paper-plane"></i> 已发送
+                </div>
+            </div>
+            <button class="back-btn" onclick="MailboxUI.showFolders()">
+                <i class="fas fa-arrow-left"></i> 返回任务列表
+            </button>
+        </div>
+
+        <div class="email-body">
+            <!-- Left: Email List -->
+            <div class="email-list-panel">
+                <div id="email-list-container"></div>
+            </div>
+
+            <!-- Right: Email Content -->
+            <div class="email-content-panel">
+                <div id="email-content-container">
+                    <div class="empty-state">
+                        <i class="far fa-envelope-open"></i>
+                        <p>选择一封邮件查看详情</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Load API script if not already loaded -->
+<script src="/frontend/static/js/api/mailbox.js?v=d7f0a4db"></script>
+
+<script>
+(function() {
+    // Namespace for UI logic to avoid global pollution
+    const MailboxUI = {
+        currentTaskId: null,
+        currentTab: 'received',
+        currentEmails: [],
+
+        init: async function() {
+            console.log('Mailbox initialized');
+            await this.loadTasks();
+            // Expose to global scope for onclick handlers in HTML
+            window.MailboxUI = this;
+        },
+
+        loadTasks: async function() {
+            const grid = document.getElementById('folder-grid');
+            grid.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> 加载中...</div>';
+            
+            try {
+                const tasks = await MailboxAPI.getTasks();
+                grid.innerHTML = '';
+                
+                if (tasks.length === 0) {
+                    grid.innerHTML = '<div class="empty-state"><p>暂无任务</p></div>';
+                    return;
+                }
+
+                tasks.forEach(task => {
+                    const card = document.createElement('div');
+                    card.className = 'folder-card';
+                    card.onclick = () => this.openTask(task.id, task.name);
+                    
+                    card.innerHTML = `
+                        <div class="folder-icon"><i class="fas fa-folder"></i></div>
+                        <div class="folder-name" title="${task.name}">${task.name}</div>
+                        <div class="folder-stats">
+                            <span title="Received"><i class="fas fa-inbox"></i> ${task.received_count}</span>
+                            <span style="margin: 0 5px;">|</span>
+                            <span title="Sent"><i class="fas fa-paper-plane"></i> ${task.sent_count}</span>
+                        </div>
+                    `;
+                    grid.appendChild(card);
+                });
+            } catch (error) {
+                console.error(error);
+                grid.innerHTML = '<div class="error-message">加载失败，请重试</div>';
+            }
+        },
+
+        openTask: function(taskId, taskName) {
+            this.currentTaskId = taskId;
+            document.getElementById('task-folders-view').style.display = 'none';
+            document.getElementById('email-interface-view').style.display = 'flex';
+            this.switchTab('received');
+        },
+
+        showFolders: function() {
+            this.currentTaskId = null;
+            document.getElementById('email-interface-view').style.display = 'none';
+            document.getElementById('task-folders-view').style.display = 'block';
+        },
+
+        switchTab: async function(type) {
+            this.currentTab = type;
+            
+            document.querySelectorAll('.email-tab').forEach(tab => {
+                if (tab.dataset.type === type) {
+                    tab.classList.add('active');
+                } else {
+                    tab.classList.remove('active');
+                }
+            });
+
+            document.getElementById('email-content-container').innerHTML = `
+                <div class="empty-state">
+                    <i class="far fa-envelope-open"></i>
+                    <p>选择一封邮件查看详情</p>
+                </div>
+            `;
+
+            await this.loadEmails(this.currentTaskId, type);
+        },
+
+        loadEmails: async function(taskId, type) {
+            const container = document.getElementById('email-list-container');
+            container.innerHTML = '<div style="padding:20px;text-align:center;color:#666;"><i class="fas fa-spinner fa-spin"></i> 加载中...</div>';
+            
+            try {
+                const emails = await MailboxAPI.getEmails(taskId, type);
+                this.currentEmails = emails;
+                container.innerHTML = '';
+
+                if (emails.length === 0) {
+                    container.innerHTML = '<div style="padding:20px;text-align:center;color:#999;">暂无邮件</div>';
+                    return;
+                }
+
+                emails.forEach(email => {
+                    const item = document.createElement('div');
+                    item.className = 'email-list-item';
+                    item.dataset.id = email.id;
+                    item.onclick = () => this.selectEmail(email.id);
+
+                    const displayName = type === 'received' ? email.sender_name : email.recipient_name;
+                    const avatarLetter = displayName ? displayName.charAt(0).toUpperCase() : '?';
+                    const dateStr = new Date(email.timestamp).toLocaleDateString();
+                    const hasAttach = email.has_attachment ? '<i class="fas fa-paperclip" style="font-size:12px;color:#666;margin-left:5px;"></i>' : '';
+
+                    item.innerHTML = `
+                        <div class="email-avatar">${avatarLetter}</div>
+                        <div class="email-item-content">
+                            <div class="email-sender">${displayName}</div>
+                            <div class="email-subject">${email.subject}</div>
+                            <div class="email-snippet">${email.snippet || 'No content'}</div>
+                            <div class="email-meta">
+                                <span>${dateStr}</span>
+                                <span>${hasAttach}</span>
+                            </div>
+                        </div>
+                    `;
+                    container.appendChild(item);
+                });
+            } catch (error) {
+                console.error(error);
+                container.innerHTML = '<div style="padding:20px;text-align:center;color:red;">加载失败</div>';
+            }
+        },
+
+        selectEmail: function(emailId) {
+            document.querySelectorAll('.email-list-item').forEach(item => {
+                if (parseInt(item.dataset.id) === emailId) {
+                    item.classList.add('active');
+                } else {
+                    item.classList.remove('active');
+                }
+            });
+
+            const email = this.currentEmails.find(e => e.id === emailId);
+            if (!email) return;
+
+            this.renderEmailContent(email);
+        },
+
+        renderEmailContent: function(email) {
+            const container = document.getElementById('email-content-container');
+            const displayName = this.currentTab === 'received' ? email.sender_name : email.recipient_name;
+            const displayEmail = this.currentTab === 'received' ? email.sender_email : email.recipient_email;
+            const avatarLetter = displayName ? displayName.charAt(0).toUpperCase() : '?';
+            const dateStr = new Date(email.timestamp).toLocaleString();
+
+            let attachmentsHtml = '';
+            if (email.attachment) {
+                const att = email.attachment;
+                const sizeStr = this.formatFileSize(att.file_size);
+                const iconClass = att.file_name.endsWith('.xlsx') || att.file_name.endsWith('.xls') ? 'fa-file-excel' : 'fa-file';
+                
+                attachmentsHtml = `
+                    <div class="email-attachments">
+                        <div class="attachment-card" onclick="MailboxUI.downloadAttachment('${att.download_url}', '${att.file_name}')">
+                            <div class="attachment-icon"><i class="fas ${iconClass}"></i></div>
+                            <div class="attachment-info">
+                                <div class="attachment-name">${att.file_name}</div>
+                                <div class="attachment-size">${sizeStr}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            container.innerHTML = `
+                <div class="email-detail-header" style="border:none; padding-bottom:0; margin-bottom: 20px;">
+                    <div class="email-detail-info">
+                        <div class="email-detail-avatar">${avatarLetter}</div>
+                        <div class="email-detail-meta">
+                            <div class="sender-name">${displayName} <span class="sender-email">&lt;${displayEmail}&gt;</span></div>
+                            <div class="email-time">${dateStr}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="email-detail-container">
+                    <!-- Subject Box -->
+                    <div class="detail-box subject-box">
+                        <div class="detail-box-header">主题</div>
+                        <div class="detail-box-content">${email.subject || ''}</div>
+                    </div>
+
+                    <!-- Body Box -->
+                    <div class="detail-box body-box">
+                        <div class="detail-box-header">正文</div>
+                        <div class="detail-box-content">${email.body || ''}</div>
+                    </div>
+                </div>
+                
+                ${attachmentsHtml ? '<div style="margin-top: 20px;">' + attachmentsHtml + '</div>' : ''}
+            `;
+        },
+
+        downloadAttachment: async function(url, filename) {
+            try {
+                const response = await fetch(url, {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('mailmerge_token')}`
+                    }
+                });
+                if (!response.ok) throw new Error('Download failed');
+                
+                const blob = await response.blob();
+                const downloadUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = downloadUrl;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(downloadUrl);
+                document.body.removeChild(a);
+            } catch (error) {
+                console.error('Download error:', error);
+                alert('下载失败');
+            }
+        },
+
+        formatFileSize: function(bytes) {
+            if (!bytes) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+    };
+
+    // Initialize
+    MailboxUI.init();
+})();
+</script>
