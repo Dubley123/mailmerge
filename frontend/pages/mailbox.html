@@ -1,4 +1,4 @@
-<link rel="stylesheet" href="/frontend/static/css/mailbox.css?v=b82e96d2">
+<link rel="stylesheet" href="/frontend/static/css/mailbox.css?v=2a0a4aa3">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
 <div class="mailbox-container">
@@ -48,7 +48,7 @@
 </div>
 
 <!-- Load API script if not already loaded -->
-<script src="/frontend/static/js/api/mailbox.js?v=d7f0a4db"></script>
+<script src="/frontend/static/js/api/mailbox.js?v=c5f0c247"></script>
 
 <script>
 (function() {
@@ -74,22 +74,37 @@
                 grid.innerHTML = '';
                 
                 if (tasks.length === 0) {
-                    grid.innerHTML = '<div class="empty-state"><p>暂无任务</p></div>';
+                    grid.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-clipboard-list" style="font-size: 48px; color: #dadce0; margin-bottom: 15px;"></i>
+                            <p style="font-size: 16px; color: #666; font-weight: 500;">暂无任务</p>
+                            <p style="font-size: 13px; color: #999; margin-top: 5px;">新发布的任务将显示在这里</p>
+                        </div>
+                    `;
                     return;
                 }
 
                 tasks.forEach(task => {
                     const card = document.createElement('div');
                     card.className = 'folder-card';
+                    if (task.type === 'trash') {
+                        card.classList.add('trash');
+                    }
                     card.onclick = () => this.openTask(task.id, task.name);
                     
+                    const iconClass = task.type === 'trash' ? 'fa-trash-alt' : 'fa-folder';
+                    
+                    // For trash folder, we might not want to show sent count if it's 0
+                    const sentStats = task.type === 'trash' ? '' : 
+                        `<span style="margin: 0 5px;">|</span>
+                         <span title="Sent"><i class="fas fa-paper-plane"></i> ${task.sent_count}</span>`;
+
                     card.innerHTML = `
-                        <div class="folder-icon"><i class="fas fa-folder"></i></div>
+                        <div class="folder-icon"><i class="fas ${iconClass}"></i></div>
                         <div class="folder-name" title="${task.name}">${task.name}</div>
                         <div class="folder-stats">
                             <span title="Received"><i class="fas fa-inbox"></i> ${task.received_count}</span>
-                            <span style="margin: 0 5px;">|</span>
-                            <span title="Sent"><i class="fas fa-paper-plane"></i> ${task.sent_count}</span>
+                            ${sentStats}
                         </div>
                     `;
                     grid.appendChild(card);
@@ -164,7 +179,7 @@
                         <div class="email-item-content">
                             <div class="email-sender">${displayName}</div>
                             <div class="email-subject">${email.subject}</div>
-                            <div class="email-snippet">${email.snippet || 'No content'}</div>
+                            <div class="email-snippet">${email.snippet || ''}</div>
                             <div class="email-meta">
                                 <span>${dateStr}</span>
                                 <span>${hasAttach}</span>

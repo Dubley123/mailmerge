@@ -22,7 +22,8 @@ class TaskFolder(BaseModel):
     description: Optional[str]
     sent_count: int
     received_count: int
-    created_at: datetime
+    created_at: Optional[datetime]
+    type: str = "normal"
 
 class EmailAttachment(BaseModel):
     id: int
@@ -69,7 +70,25 @@ def get_mailbox_tasks(
             description=task.description,
             sent_count=sent_count,
             received_count=received_count,
-            created_at=task.created_at
+            created_at=task.created_at,
+            type="normal"
+        ))
+    
+    # Check for unassigned emails (Trash)
+    unassigned_count = db.query(func.count(ReceivedEmail.id)).filter(
+        ReceivedEmail.to_sec_id == current_user.id,
+        ReceivedEmail.task_id == None
+    ).scalar()
+    
+    if unassigned_count > 0:
+        result.append(TaskFolder(
+            id=-1,
+            name="无法识别归属 (垃圾箱)",
+            description="Unassigned emails",
+            sent_count=0,
+            received_count=unassigned_count,
+            created_at=None,
+            type="trash"
         ))
     
     return result
@@ -84,14 +103,22 @@ def get_task_emails(
     """
     Get emails for a specific task.
     """
-    # Verify task ownership
-    task = db.query(CollectTask).filter(CollectTask.id == task_id, CollectTask.created_by == current_user.id).first()
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
+    task = None
+    if task_id == -1:
+        # Trash folder - no task object
+        pass
+    else:
+        # Verify task ownership
+        task = db.query(CollectTask).filter(CollectTask.id == task_id, CollectTask.created_by == current_user.id).first()
+        if not task:
+            raise HTTPException(status_code=404, detail="Task not found")
 
     emails = []
     
     if type == "sent":
+        if task_id == -1:
+            return [] # No sent emails in trash
+            
         # Query Sent Emails
         sent_emails = db.query(SentEmail).filter(SentEmail.task_id == task_id).order_by(desc(SentEmail.sent_at)).all()
         
@@ -136,7 +163,13 @@ def get_task_emails(
 
     else:
         # Query Received Emails
-        received_emails = db.query(ReceivedEmail).filter(ReceivedEmail.task_id == task_id).order_by(desc(ReceivedEmail.received_at)).all()
+        if task_id == -1:
+            received_emails = db.query(ReceivedEmail).filter(
+                ReceivedEmail.to_sec_id == current_user.id,
+                ReceivedEmail.task_id == None
+            ).order_by(desc(ReceivedEmail.received_at)).all()
+        else:
+            received_emails = db.query(ReceivedEmail).filter(ReceivedEmail.task_id == task_id).order_by(desc(ReceivedEmail.received_at)).all()
         
         for email in received_emails:
             # Resolve Sender (Teacher)
@@ -159,7 +192,7 @@ def get_task_emails(
 
             # Parse Content
             content = email.mail_content or {}
-            subject = content.get("subject", f"Re: {task.name}")
+            subject = content.get("subject", f"Re: {task.name}" if task else "No Subject")
             body = content.get("body", "No content")
             snippet = body[:100] + "..." if len(body) > 100 else body
 

@@ -10,6 +10,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
 from email.header import decode_header
+from email.utils import make_msgid
 from typing import List, Dict, Optional
 import tempfile
 import json
@@ -91,6 +92,10 @@ class EmailService:
             message["To"] = receiver_email
             message["Subject"] = subject
             
+            # Generate Message-ID
+            msg_id = make_msgid(domain=sender_email.split('@')[-1])
+            message["Message-ID"] = msg_id
+            
             # 添加邮件正文
             message.attach(MIMEText(body, "plain", "utf-8"))
             
@@ -112,24 +117,34 @@ class EmailService:
                     with open(attachment_path, "rb") as f:
                         attachment = MIMEApplication(f.read())
                         filename = os.path.basename(attachment_path)
+                        # Use add_header with keyword arguments to handle non-ASCII filenames (RFC 2231)
                         attachment.add_header(
                             "Content-Disposition",
-                            f"attachment; filename={filename}"
+                            "attachment",
+                            filename=filename
                         )
                         message.attach(attachment)
             
             # 连接SMTP服务器并发送邮件
-            with smtplib.SMTP(smtp_server, smtp_port) as server:
-                server.starttls()  # 启用TLS加密
-                server.login(sender_email, sender_password)
-                server.send_message(message)
+            if smtp_port == 465:
+                # 使用SSL连接（适用于163, sina等）
+                with smtplib.SMTP_SSL(smtp_server, smtp_port) as server:
+                    server.login(sender_email, sender_password)
+                    server.send_message(message)
+            else:
+                # 使用TLS连接（适用于Gmail, QQ, Outlook等）
+                with smtplib.SMTP(smtp_server, smtp_port) as server:
+                    server.starttls()  # 启用TLS加密
+                    server.login(sender_email, sender_password)
+                    server.send_message(message)
             
             return {
                 "success": True,
                 "message": "邮件发送成功",
                 "sender": sender_email,
                 "receiver": receiver_email,
-                "subject": subject
+                "subject": subject,
+                "message_id": msg_id
             }
             
         except Exception as e:
@@ -176,7 +191,17 @@ class EmailService:
             # 连接IMAP服务器
             mail = imaplib.IMAP4_SSL(imap_server, imap_port)
             mail.login(email_address, email_password)
-            mail.select("INBOX")
+            
+            # Send ID command (RFC 2971) - Required by some providers like 163 to avoid "Unsafe Login"
+            try:
+                # Using xatom to send ID command
+                mail.xatom('ID', '("name" "MailMerge" "version" "1.0.0")')
+            except Exception as e:
+                print(f"IMAP ID command failed (ignoring): {e}")
+
+            typ, data = mail.select("INBOX")
+            if typ != 'OK':
+                raise Exception(f"Could not select INBOX: {data}")
             
             # 搜索邮件
             search_criteria = "UNSEEN" if only_unread else "ALL"
@@ -214,6 +239,8 @@ class EmailService:
                     subject = self._decode_mime_header(email_message.get("Subject", ""))
                     from_addr = self._decode_mime_header(email_message.get("From", ""))
                     date = email_message.get("Date", "")
+                    message_id = email_message.get("Message-ID", "")
+                    in_reply_to = email_message.get("In-Reply-To", "")
                     
                     # 解析邮件正文
                     body = ""
@@ -254,6 +281,8 @@ class EmailService:
                         "subject": subject,
                         "from": from_addr,
                         "date": date,
+                        "message_id": message_id,
+                        "in_reply_to": in_reply_to,
                         "body": body.strip(),
                         "attachments": attachments
                     }

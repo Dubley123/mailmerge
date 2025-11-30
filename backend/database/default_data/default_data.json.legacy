@@ -1,0 +1,254 @@
+{
+  "departments": [
+    {
+      "name": "财政金融学院"
+    },
+    {
+      "name": "信息学院"
+    },
+    {
+      "name": "高瓴人工智能学院"
+    }
+  ],
+  "teachers": [
+    {
+      "id": 2023200001,
+      "name": "测试教师1",
+      "department_name": "财政金融学院",
+      "email": "dubleytest1@163.com",
+      "mail_auth_code": "FJw3SettC4KnVkEk",
+      "phone": "10112345678",
+      "title": "教授",
+      "office": "A101"
+    },
+    {
+      "id": 2023200002,
+      "name": "测试教师2",
+      "department_name": "财政金融学院",
+      "email": "dubleytest2@163.com",
+      "mail_auth_code": "YTw92JBhzXfnzUDf",
+      "phone": "10212345678",
+      "title": "副教授"
+    },
+    {
+      "id": 2023200003,
+      "name": "测试教师3",
+      "department_name": "财政金融学院",
+      "email": "dubleytest3@sina.com",
+      "mail_auth_code": "59da4d828997ad17",
+      "phone": "10312345678",
+      "title": "讲师",
+      "office": "B202"
+    },
+    {
+      "id": 2023200004,
+      "name": "测试教师4",
+      "department_name": "信息学院",
+      "email": "dubleytest4@sina.com",
+      "mail_auth_code": "9607786037882d95",
+      "phone": "10412345678",
+      "title": "教授",
+      "office": "C101"
+    },
+    {
+      "id": 2023200005,
+      "name": "测试教师5",
+      "department_name": "信息学院",
+      "email": "dubleytest5@sina.com",
+      "mail_auth_code": "f34fc61b81d18623",
+      "phone": "10512345678",
+      "title": "副教授"
+    },
+    {
+      "id": 2023200006,
+      "name": "测试教师6",
+      "department_name": "信息学院",
+      "email": "chenkai@example.com",
+      "phone": "10612345678",
+      "title": "讲师"
+    }
+  ],
+  "secretaries": [
+    {
+      "id": 2023200142,
+      "name": "冯欣钰",
+      "department_name": "财政金融学院",
+      "username": "dubley",
+      "account": "ruc2023200142",
+      "password": "123456",
+      "email": "18707969203@163.com",
+      "phone": "18707969203",
+      "mail_auth_code": "AQxLDw95SPPzqr7L"
+    },
+    {
+      "id": 2023200195,
+      "name": "王一轩",
+      "department_name": "财政金融学院",
+      "username": "wangyixuan",
+      "account": "ruc2023200195",
+      "password": "123456",
+      "email": "602020147@qq.com"
+    },
+    {
+      "id": 2023202289,
+      "name": "刘曜嘉",
+      "department_name": "信息学院",
+      "username": "frankmangod",
+      "account": "ruc2023202289",
+      "password": "123456",
+      "email": "212640362@qq.com",
+      "phone": "18601003260"
+    }
+  ],
+  "template_forms": [
+    {
+      "name": "教师信息收集",
+      "description": null,
+      "created_by": 2023200142
+    }
+  ],
+  "template_form_fields": [
+    {
+      "form_index": 0,
+      "ord": 1,
+      "display_name": "教师名称",
+      "validation_rule": {
+        "required": true,
+        "type": "TEXT",
+        "min_length": 1,
+        "max_length": 64
+      }
+    },
+    {
+      "form_index": 0,
+      "ord": 2,
+      "display_name": "教师工号",
+      "validation_rule": {
+        "required": true,
+        "type": "EMPLOYEE_ID",
+        "regex": "^[0-9]{10}$"
+      }
+    },
+    {
+      "form_index": 0,
+      "ord": 3,
+      "display_name": "教师电话号码",
+      "validation_rule": null
+    },
+    {
+      "form_index": 0,
+      "ord": 4,
+      "display_name": "本学期教授课程数量",
+      "validation_rule": {
+        "required": true,
+        "type": "INTEGER",
+        "min": 0
+      }
+    }
+  ],
+  "collect_tasks": [
+    {
+      "name": "2023秋季教师信息收集",
+      "description": "收集教师基本信息和课程数据",
+      "started_time": "2023-09-01T00:00:00",
+      "deadline": "2023-09-15T00:00:00",
+      "mail_content_template": {},
+      "status": "EXPIRED",
+      "created_by": 2023200142,
+      "targets": [
+        {
+          "teacher_id": 2023200000
+        },
+        {
+          "teacher_id": 2023200001
+        },
+        {
+          "teacher_id": 2023200002
+        }
+      ]
+    }
+  ],
+  "sent_attachments": [
+    {
+      "file_path": "minio://mailmerge/sent_attachment/1/sent_template.xlsx",
+      "file_name": "sent_template.xlsx",
+      "content_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "file_size": 5345
+    }
+  ],
+  "sent_emails": [
+    {
+      "from_sec_id": 2023200142,
+      "to_tea_id": 2023200001,
+      "sent_at": "2023-09-01T08:00:00",
+      "status": "sent",
+      "retry_count": 0,
+      "message_id": "sent_1",
+      "mail_content": {}
+    },
+    {
+      "from_sec_id": 2023200142,
+      "to_tea_id": 2023200002,
+      "sent_at": "2023-09-01T08:00:00",
+      "status": "sent",
+      "retry_count": 0,
+      "message_id": "sent_2",
+      "mail_content": {}
+    },
+    {
+      "from_sec_id": 2023200142,
+      "to_tea_id": 2023200003,
+      "sent_at": "2023-09-01T08:00:00",
+      "status": "sent",
+      "retry_count": 0,
+      "message_id": "sent_3",
+      "mail_content": {}
+    }
+  ],
+  "received_attachments": [
+    {
+      "file_path": "minio://mailmerge/received_attachment/1/received_2023200001.xlsx",
+      "file_name": "received_2023200001.xlsx",
+      "content_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "file_size": 5789
+    },
+    {
+      "file_path": "minio://mailmerge/received_attachment/2/received_2023200002.xlsx",
+      "file_name": "received_2023200002.xlsx",
+      "content_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "file_size": 5801
+    },
+    {
+      "file_path": "minio://mailmerge/received_attachment/3/received_2023200003.xlsx",
+      "file_name": "received_2023200003.xlsx",
+      "content_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "file_size": 5823
+    }
+  ],
+  "received_emails": [
+    {
+      "from_tea_id": 2023200001,
+      "to_sec_id": 2023200142,
+      "received_at": "2023-09-05T10:00:00",
+      "message_id": "recv_1",
+      "mail_content": {},
+      "is_aggregated": false
+    },
+    {
+      "from_tea_id": 2023200002,
+      "to_sec_id": 2023200142,
+      "received_at": "2023-09-06T11:00:00",
+      "message_id": "recv_2",
+      "mail_content": {},
+      "is_aggregated": false
+    },
+    {
+      "from_tea_id": 2023200003,
+      "to_sec_id": 2023200142,
+      "received_at": "2023-09-07T12:00:00",
+      "message_id": "recv_3",
+      "mail_content": {},
+      "is_aggregated": false
+    }
+  ]
+}

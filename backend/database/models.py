@@ -16,11 +16,6 @@ from backend.utils import get_utc_now
 Base = declarative_base()
 
 
-# Enums
-# Legacy: DataType enum removed in favor of JSON `validation_rule` on TemplateFormField.
-# Keep enum removal intentional: all places should now use validation_rule JSON instead.
-
-
 class EmailStatus(enum.Enum):
     """Email sending status"""
     QUEUED = "queued"
@@ -96,6 +91,7 @@ class Secretary(Base):
     account = Column(String(100), nullable=False, unique=True, comment='登录账号')
     password_hash = Column(String(255), nullable=False, comment='密码哈希')
     email = Column(String(150), nullable=False, unique=True, comment='秘书邮箱')
+    mail_auth_code = Column(String(255), nullable=True, comment='邮箱授权码(加密)')
     phone = Column(String(30), nullable=True, comment='手机')
     teacher_id = Column(BigInteger, ForeignKey('teacher.id'), nullable=True, comment='若秘书也是教师')
     extra = Column(JSON, nullable=True, comment='备注信息')
@@ -311,7 +307,7 @@ class ReceivedEmail(Base):
     __tablename__ = 'received_email'
 
     id = Column(BigInteger, primary_key=True, comment='唯一 ID')
-    task_id = Column(BigInteger, ForeignKey('collect_task.id'), nullable=False, comment='对应任务 ID')
+    task_id = Column(BigInteger, ForeignKey('collect_task.id'), nullable=True, comment='对应任务 ID')
     from_tea_id = Column(BigInteger, ForeignKey('teacher.id'), nullable=False, comment='发件教师 ID')
     to_sec_id = Column(BigInteger, ForeignKey('secretary.id'), nullable=False, comment='收件秘书 ID')
     received_at = Column(DateTime(timezone=True), nullable=False, comment='邮件接收时间')
@@ -368,3 +364,6 @@ class Aggregation(Base):
         Index('idx_aggregation_generator', 'generated_by'),
         Index('idx_aggregation_generated_at', 'generated_at'),
     )
+
+# Add mail_auth_code to Secretary model
+# Note: This is a manual edit simulation. I will use replace_string_in_file for the actual edit.

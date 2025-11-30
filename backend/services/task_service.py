@@ -14,6 +14,7 @@ from backend.database.models import (
 )
 from backend.storage_service import storage
 from backend.utils import get_utc_now
+from backend.services.email_publisher import publish_task_emails
 
 def perform_aggregation(db: Session, task: CollectTask, user_id: int) -> dict:
     """
@@ -368,6 +369,13 @@ def check_task_status(task: CollectTask, db: Session):
         db.add(task)
         db.commit()
         print(f"[Scheduler] Task {task.id} activated.")
+        
+        # Trigger email publishing
+        try:
+            print(f"[Scheduler] Publishing emails for task {task.id}...")
+            publish_task_emails(db, task.id)
+        except Exception as e:
+            print(f"[Scheduler] Failed to publish emails for task {task.id}: {e}")
         
     # 2. ACTIVE -> CLOSED -> AGGREGATED (Reached deadline)
     if task.status == TaskStatus.ACTIVE and task.deadline and task.deadline <= now:

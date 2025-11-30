@@ -7,6 +7,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 from backend.database.db_config import get_session_factory
 from backend.database.models import CollectTask, TaskStatus
 from backend.services.task_service import check_task_status
+from backend.services.email_receiver import fetch_and_process_emails
 import logging
 
 # Configure logging
@@ -45,6 +46,20 @@ def check_all_tasks():
     finally:
         db.close()
 
+def fetch_emails_job():
+    """
+    Periodic job to fetch and process emails.
+    """
+    logger.info("Running email fetch job...")
+    SessionLocal = get_session_factory()
+    db = SessionLocal()
+    try:
+        fetch_and_process_emails(db)
+    except Exception as e:
+        logger.error(f"Email fetch job failed: {e}")
+    finally:
+        db.close()
+
 def start_scheduler():
     """
     Start the background scheduler.
@@ -58,6 +73,16 @@ def start_scheduler():
             name='Check Task Status and Auto-Aggregate',
             replace_existing=True
         )
+        
+        # Add job to fetch emails every 2 minutes
+        scheduler.add_job(
+            fetch_emails_job,
+            trigger=IntervalTrigger(minutes=2),
+            id='fetch_emails_job',
+            name='Fetch and Process Emails',
+            replace_existing=True
+        )
+        
         scheduler.start()
         logger.info("Background scheduler started.")
 

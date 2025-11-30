@@ -11,3 +11,4 @@ sqlalchemy==2.0.44
 alembic==1.17.2
 minio==7.2.19
 APScheduler==3.11.1
+cryptography==46.0.3

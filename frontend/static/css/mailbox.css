@@ -397,3 +397,22 @@
     font-weight: 500;
     font-size: 16px;
 }
+
+/* Trash Folder Styles */
+.folder-card.trash {
+    border-color: #ffcdd2;
+    background-color: #fff5f5;
+}
+
+.folder-card.trash:hover {
+    border-color: #ef9a9a;
+    box-shadow: 0 8px 20px rgba(255, 0, 0, 0.1);
+}
+
+.folder-card.trash .folder-icon {
+    color: #ef5350;
+}
+
+.folder-card.trash .folder-name {
+    color: #c62828;
+}

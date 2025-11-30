@@ -18,6 +18,8 @@ from backend.database.models import (
 )
 from backend.api.auth import get_current_user
 from backend.services.task_service import perform_aggregation, check_task_status
+from backend.services.email_publisher import publish_task_emails
+from fastapi import BackgroundTasks
 
 router = APIRouter()
 
@@ -195,6 +197,7 @@ async def get_task_detail(
 @router.post("/create")
 async def create_task(
     request: CreateTaskRequest,
+    background_tasks: BackgroundTasks,
     current_user: Secretary = Depends(get_current_user),
     db: Session = Depends(get_db_session)
 ):
@@ -245,6 +248,11 @@ async def create_task(
             target = CollectTaskTarget(task_id=new_task.id, teacher_id=teacher_id)
             db.add(target)
         db.commit()
+        
+        # If task is ACTIVE immediately (started_time is None or <= now), publish emails
+        if task_status == TaskStatus.ACTIVE:
+            background_tasks.add_task(publish_task_emails, db, new_task.id)
+            
         return {"success": True, "message": "任务创建成功", "data": {"task_id": new_task.id}}
     except Exception as e:
         db.rollback()
@@ -255,6 +263,7 @@ async def create_task(
 async def update_task(
     task_id: int,
     request: UpdateTaskRequest,
+    background_tasks: BackgroundTasks,
     current_user: Secretary = Depends(get_current_user),
     db: Session = Depends(get_db_session)
 ):
@@ -277,15 +286,18 @@ async def update_task(
     if request.deadline is not None:
         task.deadline = ensure_utc(request.deadline)
 
+    should_publish = False
     if 'started_time' in request.model_dump(exclude_unset=True):
         now = get_utc_now()
         if request.started_time is None:
             task.started_time = now
             task.status = TaskStatus.ACTIVE
+            should_publish = True
         else:
             task.started_time = ensure_utc(request.started_time)
             if task.started_time <= now:
                 task.status = TaskStatus.ACTIVE
+                should_publish = True
             else:
                 task.status = TaskStatus.DRAFT
 
@@ -314,6 +326,8 @@ async def update_task(
 
     try:
         db.commit()
+        if should_publish:
+            background_tasks.add_task(publish_task_emails, db, task.id)
         return {"success": True, "message": "任务更新成功"}
     except Exception as e:
         db.rollback()
@@ -389,6 +403,7 @@ async def close_task(
 @router.post("/{task_id}/publish")
 async def publish_task(
     task_id: int,
+    background_tasks: BackgroundTasks,
     current_user: Secretary = Depends(get_current_user),
     db: Session = Depends(get_db_session)
 ):
@@ -405,7 +420,11 @@ async def publish_task(
     task.status = TaskStatus.ACTIVE
     try:
         db.commit()
-        return {"success": True, "message": "任务已发布"}
+        
+        # Trigger email sending in background
+        background_tasks.add_task(publish_task_emails, db, task.id)
+        
+        return {"success": True, "message": "任务已发布，邮件发送中"}
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"发布任务失败：{str(e)}")

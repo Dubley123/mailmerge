@@ -53,6 +53,7 @@
 | account       | VARCHAR(100) | NOT NULL, UNIQUE                                             | 登录账号（登录凭据）         |
 | password_hash | VARCHAR(255) | NOT NULL                                                     | 密码哈希（bcrypt/argon2）    |
 | email         | VARCHAR(150) | NOT NULL, UNIQUE                                             | 秘书邮箱（任务执行非常重要） |
+| mail_auth_code| VARCHAR(255) | NULL                                                         | 邮箱授权码（加密存储）       |
 | phone         | VARCHAR(30)  | NULL                                                         | 手机                         |
 | teacher_id    | BIGINT       | NULL, FOREIGN KEY → Teacher(id)                              | 若秘书也是教师               |
 | extra         | JSONB        | NULL                                                         | 备注信息                     |
@@ -149,7 +150,7 @@
 | 字段名        | 类型         | 约束                                                         | 含义说明                      |
 | ------------- | ------------ | ------------------------------------------------------------ | ----------------------------- |
 | id            | BIGINT       | PRIMARY KEY                                                  | 唯一 ID                       |
-| task_id       | BIGINT       | NOT NULL, FOREIGN KEY → CollectTask(id)                      | 对应 CollectTask 表任务 ID    |
+| task_id       | BIGINT       | NULL, FOREIGN KEY → CollectTask(id)                          | 对应 CollectTask 表任务 ID    |
 | from_tea_id   | BIGINT       | NOT NULL, FOREIGN KEY → Teacher(id)                          | 发件教师 ID                   |
 | to_sec_id     | BIGINT       | NOT NULL, FOREIGN KEY → Secretary(id)                        | 收件秘书 ID                   |
 | received_at   | DATETIME     | NOT NULL                                                     | 邮件接收时间                  |

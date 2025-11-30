@@ -13,6 +13,7 @@ import jwt
 from datetime import datetime, timedelta
 import os
 from backend.utils import get_utc_now
+from backend.utils.encryption import encrypt_value
 
 from backend.database.db_config import get_db_session
 from backend.database.models import Secretary, Department
@@ -41,6 +42,7 @@ class RegisterRequest(BaseModel):
     department_id: int = Field(..., description="所属院系ID")
     username: str = Field(..., min_length=3, max_length=50, description="用户名")
     email: EmailStr = Field(..., description="邮箱")
+    mail_auth_code: str = Field(..., description="邮箱授权码")
     phone: Optional[str] = Field(None, description="手机号")
     password: str = Field(..., min_length=6, description="密码")
 
@@ -229,6 +231,7 @@ async def register(request: RegisterRequest, db: Session = Depends(get_db_sessio
         account=request.username,  # 使用用户名作为账号
         password_hash=hash_password(request.password),
         email=request.email,
+        mail_auth_code=encrypt_value(request.mail_auth_code),
         phone=request.phone
     )
     
