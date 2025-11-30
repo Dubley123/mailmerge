@@ -25,6 +25,8 @@ STATIC_FILES = {
     "static/js/api/common.js": ["pages/tasks.html", "pages/templates.html"],
     "static/js/utils.js": ["pages/tasks.html"],
     "static/js/navigation.js": ["pages/dashboard.html"],
+    "static/css/mailbox.css": ["pages/mailbox.html"],
+    "static/js/api/mailbox.js": ["pages/mailbox.html"],
 }
 
 
