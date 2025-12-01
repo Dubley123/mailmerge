@@ -7,9 +7,14 @@ from backend.database.models import (
     SentEmail, CollectTask, TaskStatus, TemplateForm, TemplateFormField
 )
 from backend.email_service import fetch_email
+from email.utils import parsedate_to_datetime
+from datetime import timezone
 from backend.utils.encryption import decrypt_value
 from backend.storage_service import storage
 from backend.utils import get_utc_now
+from backend.logger import get_logger
+
+module_logger = get_logger(__name__)
 
 def get_imap_config(email_address: str):
     """Simple config guesser based on domain"""
@@ -23,23 +28,42 @@ def get_imap_config(email_address: str):
     # Default
     return {'imap_server': 'imap.qq.com', 'imap_port': 993}
 
-def fetch_and_process_emails(db: Session):
+def fetch_and_process_emails(db: Session, since_ts=None, logger=None):
     """
     Fetch unread emails for all secretaries and process them.
+    Returns (max_seen_ts, total_processed_count)
     """
+    if logger is None:
+        logger = module_logger.info
+
     secretaries = db.query(Secretary).filter(Secretary.mail_auth_code != None).all()
+    
+    max_seen_ts = None
+    total_processed = 0
     
     for secretary in secretaries:
         try:
-            process_secretary_emails(db, secretary)
+            # pass since_ts to process for filtering; returns (latest timestamp seen, count processed)
+            sec_max, count = process_secretary_emails(db, secretary, since_ts, logger)
+            total_processed += count
+            
+            if sec_max:
+                if max_seen_ts is None or sec_max > max_seen_ts:
+                    max_seen_ts = sec_max
         except Exception as e:
-            print(f"Error processing emails for secretary {secretary.email}: {e}")
+            msg = f"Error processing emails for secretary {secretary.email}: {e}"
+            logger(msg)
 
-def process_secretary_emails(db: Session, secretary: Secretary):
+    return max_seen_ts, total_processed
+
+def process_secretary_emails(db: Session, secretary: Secretary, since_ts=None, logger=None):
+    if logger is None:
+        logger = module_logger.info
+
     try:
         auth_code = decrypt_value(secretary.mail_auth_code)
     except Exception:
-        return
+        return None, 0
 
     imap_config = get_imap_config(secretary.email)
     
@@ -49,20 +73,59 @@ def process_secretary_emails(db: Session, secretary: Secretary):
         email_password=auth_code,
         imap_server=imap_config['imap_server'],
         imap_port=imap_config['imap_port'],
-        only_unread=True
+        only_unread=False
     )
     
     if not result['success']:
-        print(f"Failed to fetch emails for {secretary.email}: {result['message']}")
-        return
+        msg = f"Failed to fetch emails for {secretary.email}: {result['message']}"
+        logger(msg)
+        return None, 0
 
+    latest_ts = None
+    processed_count = 0
+    
     for email_data in result['emails']:
+        # Parse date header to datetime
+        date_str = email_data.get('date')
+        email_dt = None
         try:
-            process_single_email(db, secretary, email_data)
-        except Exception as e:
-            print(f"Error processing email {email_data.get('id')}: {e}")
+            if date_str:
+                email_dt = parsedate_to_datetime(date_str)
+                if email_dt and email_dt.tzinfo is None:
+                    email_dt = email_dt.replace(tzinfo=timezone.utc)
+                # normalize to UTC
+                if email_dt:
+                    email_dt = email_dt.astimezone(timezone.utc)
+        except Exception:
+            email_dt = None
 
-def process_single_email(db: Session, secretary: Secretary, email_data: dict):
+        # Update latest_ts seen
+        if email_dt:
+            if latest_ts is None or email_dt > latest_ts:
+                latest_ts = email_dt
+
+        # If since_ts provided, skip emails on/before since_ts
+        if since_ts and email_dt:
+            try:
+                if email_dt <= since_ts:
+                    # skip old email
+                    continue
+            except Exception:
+                pass
+
+        try:
+            process_single_email(db, secretary, email_data, logger)
+            processed_count += 1
+        except Exception as e:
+            msg = f"Error processing email {email_data.get('id')}: {e}"
+            logger(msg)
+
+    return latest_ts, processed_count
+
+def process_single_email(db: Session, secretary: Secretary, email_data: dict, logger=None):
+    if logger is None:
+        logger = module_logger.info
+
     # 1. Identify Teacher
     sender_str = email_data.get('from', '')
     # Extract email from "Name <email>" or just "email"
@@ -71,7 +134,8 @@ def process_single_email(db: Session, secretary: Secretary, email_data: dict):
     
     teacher = db.query(Teacher).filter(Teacher.email == sender_email).first()
     if not teacher:
-        print(f"Ignored email from unknown teacher: {sender_email}")
+        msg = f"Ignored email from unknown teacher: {sender_email}"
+        logger(msg)
         return
     
     teacher_id = teacher.id
@@ -92,7 +156,8 @@ def process_single_email(db: Session, secretary: Secretary, email_data: dict):
         for task in tasks:
             if task.name and task.name in subject:
                 task_id = task.id
-                print(f"Identified task {task.id} by subject match: '{task.name}' in '{subject}'")
+                msg = f"Identified task {task.id} by subject match: '{task.name}' in '{subject}'"
+                logger(msg)
                 break
     
     # 2b. Process Attachment (and check headers if task_id is still None)
@@ -120,10 +185,12 @@ def process_single_email(db: Session, secretary: Secretary, email_data: dict):
                         # Check if headers match
                         if template_headers and template_headers.issubset(headers):
                             task_id = task.id
-                            print(f"Identified task {task.id} by Excel headers")
+                            msg = f"Identified task {task.id} by Excel headers"
+                            logger(msg)
                             break
                 except Exception as e:
-                    print(f"Failed to read Excel headers for identification: {e}")
+                    msg = f"Failed to read Excel headers for identification: {e}"
+                    logger(msg)
 
         # Upload to MinIO
         # If task_id is None, we store it in a generic folder or keep it as is?
@@ -150,10 +217,12 @@ def process_single_email(db: Session, secretary: Secretary, email_data: dict):
             if os.path.exists(local_path):
                 os.remove(local_path)
         except Exception as e:
-            print(f"Failed to upload attachment: {e}")
+            msg = f"Failed to upload attachment: {e}"
+            logger(msg)
 
     if not task_id:
-        print(f"Could not identify task for email from {sender_email}. Saved with task_id=None.")
+        msg = f"Could not identify task for email from {sender_email}. Saved with task_id=None."
+        logger(msg)
 
     # 3. Save ReceivedEmail
     received_email = ReceivedEmail(
@@ -180,5 +249,5 @@ def process_single_email(db: Session, secretary: Secretary, email_data: dict):
         
     db.commit()
     if task_id:
-        print(f"Processed email from teacher {teacher_id} for task {task_id}")
-
+        msg = f"Processed email from teacher {teacher_id} for task {task_id}"
+        logger(msg)

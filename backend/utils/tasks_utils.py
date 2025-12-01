@@ -10,11 +10,15 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 from backend.database.models import (
     CollectTask, TemplateForm, TemplateFormField, 
-    ReceivedEmail, ReceivedAttachment, Aggregation, TaskStatus
+    ReceivedEmail, ReceivedAttachment, Aggregation, TaskStatus,
+    FieldValidationRecord
 )
 from backend.storage_service import storage
 from backend.utils import get_utc_now
-from backend.services.email_publisher import publish_task_emails
+from backend.email_service.email_publisher import publish_task_emails
+from backend.logger import get_logger
+
+module_logger = get_logger(__name__)
 
 def perform_aggregation(db: Session, task: CollectTask, user_id: int) -> dict:
     """
@@ -39,14 +43,13 @@ def perform_aggregation(db: Session, task: CollectTask, user_id: int) -> dict:
         ReceivedEmail.attachment_id != None
     ).all()
 
-    # if not received_emails:
-    #     raise Exception("No replies with attachments received for this task")
-
     temp_files = []
     rows = []
     warnings = []
     processed_received_ids = []
-    validation_issue_map = {}  # teacher_id -> list of {field, reason}
+    
+    # List of FieldValidationRecord objects to be added
+    validation_records_to_add = []
 
     try:
         for r in received_emails:
@@ -111,26 +114,38 @@ def perform_aggregation(db: Session, task: CollectTask, user_id: int) -> dict:
                     row_values.append(val)
                 else:
                     row_values.append(None)
+                
                 # Validation: if validation_rule exists, validate the value
                 rule = header_validation_map.get(header)
                 if rule:
                     ok, reason = _validate_value(val, rule)
                     if not ok:
-                        # use teacher id if available, otherwise received email id
+                        # Determine error type
+                        error_type = "MISSING" if reason == '必填项为空' else "INVALID"
+                        
+                        # Construct description
+                        desc = None
+                        if error_type == "INVALID":
+                            val_str = str(val) if val is not None else "空"
+                            # Format: “{value}”{reason}
+                            desc = f"“{val_str}”{reason}"
+                        
+                        # We need aggregation_id, but we don't have it yet.
+                        # We will store these temporarily and add them after creating Aggregation record.
                         teacher_id = getattr(r, 'from_tea_id', None)
-                        key_id = str(teacher_id) if teacher_id else f"rec_{r.id}"
-                        validation_issue_map.setdefault(key_id, []).append({
-                            'field': header,
-                            'reason': reason,
-                            'value': None if pd.isna(val) else str(val)
-                        })
+                        if teacher_id:
+                            validation_records_to_add.append({
+                                'teacher_id': teacher_id,
+                                'field_name': header,
+                                'error_type': error_type,
+                                'error_description': desc
+                            })
 
             rows.append(row_values)
             processed_received_ids.append(r.id)
 
         if len(rows) == 0:
-            # raise Exception(f"No mergeable Excel attachments found. Details: {warnings}")
-            print(f"Warning: No mergeable Excel attachments found. Details: {warnings}")
+            module_logger.warning(f"No mergeable Excel attachments found. Details: {warnings}")
 
         # Build DataFrame
         out_df = pd.DataFrame(rows, columns=template_headers)
@@ -152,21 +167,24 @@ def perform_aggregation(db: Session, task: CollectTask, user_id: int) -> dict:
         safe_task_name = "".join(c for c in task.name if c not in r'<>:"/\|?*')
         filename = f"{safe_task_name}_汇总表.xlsx"
         
+        has_issues = len(validation_records_to_add) > 0
+        
         if existing_agg:
             # Delete old file
             if existing_agg.file_path:
                 try:
                     storage.delete(existing_agg.file_path)
                 except Exception as e:
-                    print(f"Warning: Failed to delete old aggregation file: {e}")
+                    module_logger.warning(f"Failed to delete old aggregation file: {e}")
 
             # Update existing record
             agg = existing_agg
             agg.generated_by = user_id
             agg.generated_at = get_utc_now()
             agg.record_count = len(out_df)
-            agg.has_validation_issues = True if validation_issue_map else False
-            agg.validation_errors = validation_issue_map if validation_issue_map else None
+            agg.has_validation_issues = has_issues
+            # Clear old validation records
+            db.query(FieldValidationRecord).filter(FieldValidationRecord.aggregation_id == agg.id).delete()
         else:
             # Create new record
             agg = Aggregation(
@@ -175,12 +193,22 @@ def perform_aggregation(db: Session, task: CollectTask, user_id: int) -> dict:
                 generated_by=user_id,
                 record_count=len(out_df),
                 file_path="",
-                has_validation_issues=True if validation_issue_map else False,
-                validation_errors=validation_issue_map if validation_issue_map else None
+                has_validation_issues=has_issues
             )
             db.add(agg)
         
         db.flush() # Get ID
+
+        # Add Validation Records
+        for rec in validation_records_to_add:
+            vr = FieldValidationRecord(
+                aggregation_id=agg.id,
+                teacher_id=rec['teacher_id'],
+                field_name=rec['field_name'],
+                error_type=rec['error_type'],
+                error_description=rec['error_description']
+            )
+            db.add(vr)
 
         # Save file
         target_path = f"minio://mailmerge/aggregation/{agg.id}/{filename}"
@@ -226,7 +254,7 @@ def _validate_value(value, rule: dict):
         # None/empty checks
         if value is None or (isinstance(value, str) and value.strip() == ''):
             if required:
-                return False, 'Required field is empty'
+                return False, '必填项为空'
             return True, None
 
         # Strings: strip
@@ -241,25 +269,25 @@ def _validate_value(value, rule: dict):
                 # length checks
                 if vstr is not None:
                     if 'min_length' in rule and len(vstr) < int(rule['min_length']):
-                        return False, f"Length smaller than {rule['min_length']}"
+                        return False, f"长度小于{rule['min_length']}"
                     if 'max_length' in rule and len(vstr) > int(rule['max_length']):
-                        return False, f"Length greater than {rule['max_length']}"
+                        return False, f"长度大于{rule['max_length']}"
                 return True, None
 
             if vtype == 'INTEGER':
                 try:
                     if isinstance(value, float) and not float(value).is_integer():
-                        return False, 'Not an integer'
+                        return False, '不是整数类型'
                     int(value)
                 except Exception:
-                    return False, 'Not a valid integer'
+                    return False, '不是整数类型'
                 return True, None
 
             if vtype == 'FLOAT':
                 try:
                     float(value)
                 except Exception:
-                    return False, 'Not a valid float/number'
+                    return False, '不是浮点数类型'
                 return True, None
 
             if vtype == 'NUMBER':
@@ -267,11 +295,11 @@ def _validate_value(value, rule: dict):
                 try:
                     num = float(value)
                 except Exception:
-                    return False, 'Not a valid number'
+                    return False, '不是数字类型'
                 if 'min' in rule and num < float(rule['min']):
-                    return False, f"Below minimum {rule['min']}"
+                    return False, f"小于最小值{rule['min']}"
                 if 'max' in rule and num > float(rule['max']):
-                    return False, f"Above maximum {rule['max']}"
+                    return False, f"大于最大值{rule['max']}"
                 return True, None
 
             if vtype in ('DATE', 'DATETIME'):
@@ -280,9 +308,9 @@ def _validate_value(value, rule: dict):
                     import pandas as _pd
                     dt = _pd.to_datetime(value, errors='coerce')
                     if pd.isna(dt):
-                        return False, 'Not a valid date/datetime'
+                        return False, '不是有效的日期/时间格式'
                 except Exception:
-                    return False, 'Not a valid date/datetime'
+                    return False, '不是有效的日期/时间格式'
                 return True, None
 
             if vtype == 'BOOLEAN':
@@ -293,20 +321,20 @@ def _validate_value(value, rule: dict):
                 if isinstance(value, str):
                     if vstr.lower() in ['true', 'false', 'yes', 'no', '是', '否', '1', '0']:
                         return True, None
-                return False, 'Not a valid boolean value'
+                return False, '不是有效的布尔值'
 
             if vtype == 'EMAIL':
                 email_re = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
                 if isinstance(value, str) and email_re.match(value.strip()):
                     return True, None
-                return False, 'Not a valid email address'
+                return False, '不是有效的邮箱地址'
 
             if vtype == 'PHONE':
                 # Chinese mobile basic validation
                 phone_re = re.compile(r"^1[3-9]\d{9}$")
                 if isinstance(value, str) and phone_re.match(value.strip()):
                     return True, None
-                return False, 'Not a valid phone number'
+                return False, '不是有效的手机号码'
 
             if vtype == 'ID_CARD':
                 # Chinese ID: 15 or 18 characters (last digit can be X/x)
@@ -316,7 +344,7 @@ def _validate_value(value, rule: dict):
                     s = str(value).strip()
                 if re.fullmatch(r"\d{15}|\d{17}[\dXx]", s):
                     return True, None
-                return False, 'Not a valid ID card number'
+                return False, '不是有效的身份证号'
 
             if vtype == 'EMPLOYEE_ID' or vtype == 'ID' or vtype == 'EMP_ID':
                 # allow 5-20 chars alnum
@@ -326,7 +354,7 @@ def _validate_value(value, rule: dict):
                     s = str(value).strip()
                 if re.fullmatch(r"\d{10}", s):
                     return True, None
-                return False, 'Not a valid employee/id value'
+                return False, '不是有效的工号/学号'
 
             # Options constraint (if present) - regardless of type
             if 'options' in rule and rule.get('options'):
@@ -335,10 +363,10 @@ def _validate_value(value, rule: dict):
                     vals = [v.strip() for v in str(value).split(',') if v.strip()]
                     for vv in vals:
                         if opts and vv not in opts:
-                            return False, f"Value '{vv}' not in allowed options"
+                            return False, f"值'{vv}'不在允许的选项中"
                 else:
                     if opts and str(value).strip() not in opts:
-                        return False, f"Value not in allowed options: {opts}"
+                        return False, f"值不在允许的选项中: {opts}"
                 return True, None
 
             # regex check
@@ -347,20 +375,23 @@ def _validate_value(value, rule: dict):
                     rx = re.compile(rule['regex'])
                     if isinstance(value, str) and rx.match(value.strip()):
                         return True, None
-                    return False, 'Regex mismatch'
+                    return False, '格式不符合要求'
                 except Exception:
-                    return False, 'Invalid regex in rule'
+                    return False, '校验规则配置错误'
 
             # default allow
             return True, None
         except Exception as ex:
-            return False, f'Validation error: {str(ex)}'
+            return False, f'校验错误: {str(ex)}'
 
 
-def check_task_status(task: CollectTask, db: Session):
+def check_task_status(task: CollectTask, db: Session, logger=None):
     """
     Check and update task status based on time and events.
     """
+    if logger is None:
+        logger = module_logger.info
+
     now = get_utc_now()
     
     # 1. DRAFT -> ACTIVE (Reached start time)
@@ -368,14 +399,17 @@ def check_task_status(task: CollectTask, db: Session):
         task.status = TaskStatus.ACTIVE
         db.add(task)
         db.commit()
-        print(f"[Scheduler] Task {task.id} activated.")
+        msg = f"[Scheduler] Task {task.id} activated."
+        logger(msg)
         
         # Trigger email publishing
         try:
-            print(f"[Scheduler] Publishing emails for task {task.id}...")
+            msg = f"[Scheduler] Publishing emails for task {task.id}..."
+            logger(msg)
             publish_task_emails(db, task.id)
         except Exception as e:
-            print(f"[Scheduler] Failed to publish emails for task {task.id}: {e}")
+            msg = f"[Scheduler] Failed to publish emails for task {task.id}: {e}"
+            logger(msg)
         
     # 2. ACTIVE -> CLOSED -> AGGREGATED (Reached deadline)
     if task.status == TaskStatus.ACTIVE and task.deadline and task.deadline <= now:
@@ -383,7 +417,8 @@ def check_task_status(task: CollectTask, db: Session):
         task.status = TaskStatus.CLOSED
         db.add(task)
         db.commit()
-        print(f"[Scheduler] Task {task.id} closed (deadline reached).")
+        msg = f"[Scheduler] Task {task.id} closed (deadline reached)."
+        logger(msg)
         
         # Auto aggregate
         try:
@@ -398,9 +433,11 @@ def check_task_status(task: CollectTask, db: Session):
             task.status = TaskStatus.AGGREGATED
             db.add(task)
             db.commit()
-            print(f"[Scheduler] Task {task.id} aggregated.")
+            msg = f"[Scheduler] Task {task.id} aggregated."
+            logger(msg)
         except Exception as e:
-            print(f"[Scheduler] Auto aggregation failed for task {task.id}: {e}")
+            msg = f"[Scheduler] Auto aggregation failed for task {task.id}: {e}"
+            logger(msg)
             # Keep CLOSED status
             
     # 3. AGGREGATED -> NEEDS_REAGGREGATION (New emails arrived)
@@ -414,4 +451,5 @@ def check_task_status(task: CollectTask, db: Session):
             task.status = TaskStatus.NEEDS_REAGGREGATION
             db.add(task)
             db.commit()
-            print(f"[Scheduler] Task {task.id} marked as NEEDS_REAGGREGATION.")
+            msg = f"[Scheduler] Task {task.id} marked as NEEDS_REAGGREGATION."
+            logger(msg)

@@ -52,3 +52,4 @@ logs/
 *.docs
 tests/
 .legacy/
+.last_email_fetch_ts

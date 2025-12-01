@@ -16,6 +16,9 @@ from backend.utils import ensure_utc
 from backend.database.db_config import get_db_session
 from backend.database.models import TemplateForm, TemplateFormField, Secretary
 from backend.api.auth import get_current_user
+from backend.logger import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter()
 
@@ -137,7 +140,7 @@ async def get_template_detail(
     
     if not template:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail="模板不存在或无权访问"
         )
     
@@ -225,10 +228,10 @@ async def create_template(
         raise
     except Exception as e:
         db.rollback()
-        print(f"[ERROR] 创建模板失败: {str(e)}")
-        print(f"[ERROR] 请求数据: name={request.name}, fields={request.fields}")
+        logger.error(f"Failed to create template: {str(e)}")
+        logger.error(f"Request data: name={request.name}, fields={request.fields}")
         import traceback
-        traceback.print_exc()
+        logger.error(traceback.format_exc())
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"创建模板失败：{str(e)}"

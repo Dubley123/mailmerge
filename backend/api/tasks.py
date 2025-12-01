@@ -17,9 +17,12 @@ from backend.database.models import (
     ReceivedAttachment, Aggregation
 )
 from backend.api.auth import get_current_user
-from backend.services.task_service import perform_aggregation, check_task_status
-from backend.services.email_publisher import publish_task_emails
+from backend.utils.tasks_utils import perform_aggregation, check_task_status
+from backend.email_service.email_publisher import publish_task_emails
 from fastapi import BackgroundTasks
+from backend.logger import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter()
 
@@ -103,8 +106,7 @@ async def get_task_list(
 
     result = []
     for task in tasks:
-        # 检查并更新状态
-        check_task_status(task, db)
+        # NOTE: status updates are handled by the background scheduler; do not change status here
         
         # 获取模板名称
         template = db.query(TemplateForm).filter(
@@ -153,8 +155,7 @@ async def get_task_detail(
     if not task:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任务不存在")
 
-    # 检查状态
-    check_task_status(task, db)
+    # 状态由后台调度器维护，这里仅返回当前数据库记录
 
     template = db.query(TemplateForm).filter(TemplateForm.id == task.template_id).first()
     target_teacher_ids = db.query(CollectTaskTarget.teacher_id).filter(CollectTaskTarget.task_id == task_id).all()
@@ -428,6 +429,107 @@ async def publish_task(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"发布任务失败：{str(e)}")
+
+
+@router.post("/{task_id}/remind")
+async def remind_task(
+    task_id: int,
+    background_tasks: BackgroundTasks,
+    current_user: Secretary = Depends(get_current_user),
+    db: Session = Depends(get_db_session)
+):
+    """
+    一键催促：对未回复的教师发送催促邮件
+    """
+    task = db.query(CollectTask).filter(CollectTask.id == task_id, CollectTask.created_by == current_user.id).first()
+    if not task:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任务不存在")
+    
+    if task.status != TaskStatus.ACTIVE:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="只能催促进行中的任务")
+
+    # Find teachers who haven't replied
+    # Get all target teachers
+    target_teacher_ids = [t.teacher_id for t in db.query(CollectTaskTarget).filter(CollectTaskTarget.task_id == task_id).all()]
+    
+    # Get teachers who have replied
+    replied_teacher_ids = [t.from_tea_id for t in db.query(ReceivedEmail).filter(ReceivedEmail.task_id == task_id).all()]
+    
+    # Calculate difference
+    unreplied_ids = list(set(target_teacher_ids) - set(replied_teacher_ids))
+    
+    if not unreplied_ids:
+        return {"success": True, "message": "所有教师已回复，无需催促"}
+
+    # Send reminder emails in background
+    background_tasks.add_task(send_reminder_emails, db, task, unreplied_ids)
+    
+    return {"success": True, "message": f"已触发催促，将向 {len(unreplied_ids)} 位教师发送提醒邮件"}
+
+
+def send_reminder_emails(db: Session, task: CollectTask, teacher_ids: List[int]):
+    """
+    Helper function to send reminder emails
+    """
+    secretary = db.query(Secretary).filter(Secretary.id == task.created_by).first()
+    if not secretary or not secretary.mail_auth_code:
+        logger.error(f"Secretary {task.created_by} has no auth code configured")
+        return
+
+    from backend.utils.encryption import decrypt_value
+    try:
+        auth_code = decrypt_value(secretary.mail_auth_code)
+    except Exception as e:
+        logger.error(f"Failed to decrypt auth code: {e}")
+        return
+
+    from backend.email_service.email_publisher import get_smtp_config
+    from backend.email_service import send_email
+    from backend.database.models import SentEmail, EmailStatus
+
+    smtp_config = get_smtp_config(secretary.email)
+    
+    subject = f"{task.name} - 催促提醒"
+    body = f"尊敬的老师：\n\n您好！\n\n关于任务“{task.name}”，系统尚未收到您的回复。请您尽快填写并回复附件。\n\n谢谢！"
+
+    teachers = db.query(Teacher).filter(Teacher.id.in_(teacher_ids)).all()
+    
+    for teacher in teachers:
+        if not teacher.email:
+            continue
+            
+        email_content = {
+            "subject": subject,
+            "body": body,
+            "attachments": [] # No attachment for reminder
+        }
+        
+        logger.info(f"Sending reminder to {teacher.name} ({teacher.email})...")
+        result = send_email(
+            sender_email=secretary.email,
+            sender_password=auth_code,
+            receiver_email=teacher.email,
+            email_content=email_content,
+            smtp_server=smtp_config['smtp_server'],
+            smtp_port=smtp_config['smtp_port']
+        )
+        
+        # Record SentEmail
+        status = EmailStatus.SENT if result['success'] else EmailStatus.FAILED
+        
+        sent_email = SentEmail(
+            task_id=task.id,
+            from_sec_id=secretary.id,
+            to_tea_id=teacher.id,
+            sent_at=get_utc_now() if result['success'] else None,
+            status=status,
+            mail_content=email_content,
+            attachment_id=None, # No attachment
+            extra={"type": "reminder", "error": result.get('message')} if not result['success'] else {"type": "reminder"}
+        )
+        db.add(sent_email)
+    
+    db.commit()
 
 
 @router.post("/{task_id}/aggregate")

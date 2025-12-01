@@ -6,6 +6,9 @@ import subprocess
 import os
 from minio import Minio
 from dotenv import load_dotenv
+from backend.logger import get_logger
+
+logger = get_logger(__name__)
 
 load_dotenv()
 
@@ -25,7 +28,7 @@ def ensure_minio_running():
     compose_file = os.path.join(os.path.dirname(__file__), 'docker-compose.yml')
     container_name = "mailmerge_minio"
     
-    print("🚀 Checking MinIO service...")
+    logger.info("Checking MinIO service...")
     
     # Check if container is already running
     try:
@@ -36,10 +39,10 @@ def ensure_minio_running():
             check=True
         )
         if result.stdout.strip():
-            print(f"✅ MinIO container '{container_name}' is already running.")
+            logger.info(f"MinIO container '{container_name}' is already running.")
             return
     except (FileNotFoundError, subprocess.CalledProcessError) as e:
-        print(f"⚠️ Unable to check Docker status: {e}")
+        logger.warning(f"Unable to check Docker status: {e}")
     
     # Determine which command to use
     compose_cmd = None
@@ -58,31 +61,31 @@ def ensure_minio_running():
             
     if not compose_cmd:
         error_msg = "Docker Compose not found (neither 'docker compose' nor 'docker-compose'). MinIO service cannot be started."
-        print(f"❌ {error_msg}")
+        logger.error(error_msg)
         raise RuntimeError(error_msg)
 
     try:
         # Start MinIO (this will restart if container exists but is stopped)
-        print("Starting MinIO service...")
+        logger.info("Starting MinIO service...")
         cmd = compose_cmd + ["-f", compose_file, "up", "-d"]
         subprocess.run(cmd, check=True, capture_output=True)
-        print("✅ MinIO service started.")
+        logger.info("MinIO service started.")
         
     except subprocess.CalledProcessError as e:
         # If failed due to container name conflict, try to remove and restart
         if "already in use" in str(e.stderr):
-            print(f"⚠️ Container name conflict detected. Removing old container...")
+            logger.warning(f"Container name conflict detected. Removing old container...")
             try:
                 subprocess.run(["docker", "rm", "-f", container_name], check=True, capture_output=True)
                 subprocess.run(cmd, check=True, capture_output=True)
-                print("✅ MinIO service started after cleanup.")
+                logger.info("MinIO service started after cleanup.")
             except subprocess.CalledProcessError as e2:
                 error_msg = f"Failed to restart MinIO after cleanup: {e2}"
-                print(f"❌ {error_msg}")
+                logger.error(error_msg)
                 raise RuntimeError(error_msg) from e2
         else:
             error_msg = f"Failed to start MinIO: {e}"
-            print(f"❌ {error_msg}")
+            logger.error(error_msg)
             raise RuntimeError(error_msg) from e
 
 
@@ -122,13 +125,13 @@ def ensure_bucket_exists():
         bucket = os.getenv('MINIO_BUCKET', 'mailmerge')
         
         if client.bucket_exists(bucket_name=bucket):
-            print(f"✓ MinIO bucket '{bucket}' already exists")
+            logger.info(f"MinIO bucket '{bucket}' already exists")
             return False  # Bucket already exists
         else:
-            print(f"MinIO bucket '{bucket}' does not exist, creating...")
+            logger.info(f"MinIO bucket '{bucket}' does not exist, creating...")
             client.make_bucket(bucket_name=bucket)
-            print(f"✓ MinIO bucket '{bucket}' created successfully")
+            logger.info(f"MinIO bucket '{bucket}' created successfully")
             return True  # Bucket was newly created
     except Exception as e:
-        print(f"❌ Failed to ensure bucket exists: {e}")
+        logger.error(f"Failed to ensure bucket exists: {e}")
         raise

@@ -8,6 +8,9 @@ from backend.database.db_config import get_db_session
 from backend.api.auth import get_current_user
 from backend.database.models import SentAttachment, ReceivedAttachment, Secretary
 from backend.storage_service import download
+from backend.logger import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter()
 
@@ -18,7 +21,7 @@ def download_sent_attachment(
     current_user: Secretary = Depends(get_current_user)
 ):
     """Download a sent attachment"""
-    print(f"Downloading sent attachment {attachment_id} for user {current_user.id}")
+    logger.info(f"Downloading sent attachment {attachment_id} for user {current_user.id}")
     attachment = db.query(SentAttachment).filter(SentAttachment.id == attachment_id).first()
     if not attachment:
         raise HTTPException(status_code=404, detail="Attachment not found")
@@ -41,7 +44,7 @@ def download_sent_attachment(
             media_type=attachment.content_type or "application/octet-stream"
         )
     except Exception as e:
-        print(f"Download error: {e}")
+        logger.error(f"Download error: {e}")
         raise HTTPException(status_code=500, detail=f"Download failed: {str(e)}")
 
 
@@ -52,7 +55,7 @@ def download_received_attachment(
     current_user: Secretary = Depends(get_current_user)
 ):
     """Download a received attachment"""
-    print(f"Downloading received attachment {attachment_id} for user {current_user.id}")
+    logger.info(f"Downloading received attachment {attachment_id} for user {current_user.id}")
     attachment = db.query(ReceivedAttachment).filter(ReceivedAttachment.id == attachment_id).first()
     if not attachment:
         raise HTTPException(status_code=404, detail="Attachment not found")
@@ -74,5 +77,5 @@ def download_received_attachment(
             media_type=attachment.content_type or "application/octet-stream"
         )
     except Exception as e:
-        print(f"Download error: {e}")
+        logger.error(f"Download error: {e}")
         raise HTTPException(status_code=500, detail=f"Download failed: {str(e)}")

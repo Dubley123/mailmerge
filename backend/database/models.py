@@ -120,7 +120,7 @@ class TemplateForm(Base):
     __tablename__ = 'template_form'
 
     id = Column(BigInteger, primary_key=True, comment='模板唯一 ID')
-    name = Column(String(100), nullable=False, unique=True, comment='模板名称')
+    name = Column(String(100), nullable=False, comment='模板名称')
     description = Column(Text, nullable=True, comment='模板描述')
     created_by = Column(BigInteger, ForeignKey('secretary.id'), nullable=True, comment='创建秘书ID')
     extra = Column(JSON, nullable=True, comment='扩展字段')
@@ -178,7 +178,7 @@ class CollectTask(Base):
     __tablename__ = 'collect_task'
 
     id = Column(BigInteger, primary_key=True, comment='唯一 ID')
-    name = Column(String(255), nullable=False, unique=True, comment='任务名称')
+    name = Column(String(255), nullable=False, comment='任务名称')
     description = Column(Text, nullable=True, comment='任务描述')
     started_time = Column(DateTime(timezone=True), nullable=True, comment='任务实际开始的时间')
     deadline = Column(DateTime(timezone=True), nullable=True, comment='任务计划结束时间')
@@ -347,8 +347,6 @@ class Aggregation(Base):
     record_count = Column(Integer, nullable=True, comment='本次汇总的记录条数')
     # 是否存在校验失败的记录
     has_validation_issues = Column(Boolean, nullable=False, default=False, comment='本次汇总是否包含不合规记录')
-    # 以 teacher_id 为 key 的不合规详情，{ teacher_id: [{"field": "姓名", "reason": "手机号格式不正确"}, ...] }
-    validation_errors = Column(JSON, nullable=True, comment='校验失败详情，JSON 格式')
     file_path = Column(Text, nullable=False, comment='汇总生成文件路径')
     extra = Column(JSON, nullable=True, comment='扩展字段')
     created_at = Column(DateTime(timezone=True), nullable=False, default=get_utc_now, comment='创建时间')
@@ -358,12 +356,37 @@ class Aggregation(Base):
     # Relationships
     task = relationship("CollectTask", back_populates="aggregations")
     generator = relationship("Secretary", back_populates="aggregations")
+    validation_records = relationship("FieldValidationRecord", back_populates="aggregation", cascade="all, delete-orphan")
 
     __table_args__ = (
         Index('idx_aggregation_task', 'task_id'),
         Index('idx_aggregation_generator', 'generated_by'),
         Index('idx_aggregation_generated_at', 'generated_at'),
     )
+
+
+class FieldValidationRecord(Base):
+    """字段校验记录表"""
+    __tablename__ = 'field_validation_record'
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True, comment='唯一 ID')
+    aggregation_id = Column(BigInteger, ForeignKey('aggregation.id'), nullable=False, comment='关联汇总表 ID')
+    teacher_id = Column(BigInteger, ForeignKey('teacher.id'), nullable=False, comment='关联教师 ID')
+    field_name = Column(String(100), nullable=False, comment='字段名称')
+    error_type = Column(SQLEnum("MISSING", "INVALID", name="validation_error_type"), nullable=False, comment='错误类型')
+    error_description = Column(Text, nullable=True, comment='错误描述')
+    created_at = Column(DateTime(timezone=True), nullable=False, default=get_utc_now, comment='创建时间')
+
+    # Relationships
+    aggregation = relationship("Aggregation", back_populates="validation_records")
+    teacher = relationship("Teacher")
+
+    __table_args__ = (
+        UniqueConstraint('aggregation_id', 'teacher_id', 'field_name', name='uq_agg_teacher_field'),
+        Index('idx_validation_agg', 'aggregation_id'),
+        Index('idx_validation_teacher', 'teacher_id'),
+    )
+
 
 # Add mail_auth_code to Secretary model
 # Note: This is a manual edit simulation. I will use replace_string_in_file for the actual edit.

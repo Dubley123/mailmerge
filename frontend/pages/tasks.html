@@ -4,7 +4,7 @@
 <!-- 引入必要的JS文件 -->
 <script src="/frontend/static/js/utils.js?v=6881d932"></script>
 <script src="/frontend/static/js/api/common.js?v=1a5938af"></script>
-<script src="/frontend/static/js/api/tasks.js?v=4b515f8c"></script>
+<script src="/frontend/static/js/api/tasks.js?v=01d77330"></script>
 
 <div class="tasks-container">
     <h1 class="page-title">任务总览</h1>
@@ -972,8 +972,33 @@
     },
 
     // 催促教师
-    remindTeachers(taskId) {
-        alert('催促功能开发中...');
+    async remindTeachers(taskId) {
+        if (!confirm('确定要向所有尚未回复的教师发送催促邮件吗？')) {
+            return;
+        }
+        
+        const btn = document.querySelector(`button[onclick="TasksPage.remindTeachers(${taskId})"]`);
+        const originalText = btn ? btn.textContent : '一键催促';
+        if (btn) {
+            btn.textContent = '发送中...';
+            btn.disabled = true;
+        }
+
+        try {
+            const result = await TasksAPI.remindTask(taskId);
+            if (result.success) {
+                alert(result.message);
+            } else {
+                alert(result.message);
+            }
+        } catch (error) {
+            alert('催促失败，请重试');
+        } finally {
+            if (btn) {
+                btn.textContent = originalText;
+                btn.disabled = false;
+            }
+        }
     },
 
     // 导出数据

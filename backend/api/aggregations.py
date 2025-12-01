@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from backend.utils import ensure_utc
 
 from backend.database.db_config import get_db_session
-from backend.database.models import Aggregation, CollectTask, Secretary
+from backend.database.models import Aggregation, CollectTask, Secretary, FieldValidationRecord, Teacher
 from backend.api.auth import get_current_user
 import os
 import tempfile
@@ -227,18 +227,23 @@ def get_aggregation_info(
             raise HTTPException(status_code=403, detail="无权限查看此汇总表")
         
         task = db.query(CollectTask).filter(CollectTask.id == agg.task_id).first()
-        # Build teacher name map for validation errors
-        teacher_name_map = {}
-        if agg.validation_errors:
-            try:
-                tid_list = [int(tid) for tid in agg.validation_errors.keys() if str(tid).isdigit()]
-                if tid_list:
-                    from backend.database.models import Teacher
-                    teachers = db.query(Teacher).filter(Teacher.id.in_(tid_list)).all()
-                    for t in teachers:
-                        teacher_name_map[str(t.id)] = t.name
-            except Exception:
-                teacher_name_map = {}
+        
+        # Fetch validation records
+        validation_records = []
+        if agg.has_validation_issues:
+            records = db.query(FieldValidationRecord).filter(
+                FieldValidationRecord.aggregation_id == agg.id
+            ).all()
+            
+            for rec in records:
+                teacher = db.query(Teacher).filter(Teacher.id == rec.teacher_id).first()
+                validation_records.append({
+                    "teacher_id": rec.teacher_id,
+                    "teacher_name": teacher.name if teacher else "Unknown",
+                    "field_name": rec.field_name,
+                    "error_type": rec.error_type,
+                    "error_description": rec.error_description
+                })
         
         return {
             "success": True,
@@ -251,8 +256,8 @@ def get_aggregation_info(
                 "record_count": agg.record_count,
                 "file_path": agg.file_path,
                 "extra": agg.extra,
-                "validation_errors": agg.validation_errors,
-                "validation_teacher_names": teacher_name_map
+                "has_validation_issues": agg.has_validation_issues,
+                "validation_records": validation_records
             }
         }
     

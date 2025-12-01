@@ -68,6 +68,8 @@ def update_html_file(html_path: Path, static_path: str, version_hash: str):
 
 def main():
     """主函数：遍历所有静态文件，计算哈希并更新HTML引用"""
+    seperator = "=" * 60
+    print(seperator)
     print("🔄 开始更新前端静态文件版本号...\n")
     
     updated_count = 0
@@ -93,6 +95,7 @@ def main():
         print()
     
     print(f"✨ 完成！共检查 {total_count} 个引用，更新了 {updated_count} 个")
+    print(seperator + "\n")
 
 
 if __name__ == "__main__":

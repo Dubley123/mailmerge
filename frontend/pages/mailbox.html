@@ -75,7 +75,7 @@
                 
                 if (tasks.length === 0) {
                     grid.innerHTML = `
-                        <div class="empty-state">
+                        <div class="empty-state" style="grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 300px; text-align: center;">
                             <i class="fas fa-clipboard-list" style="font-size: 48px; color: #dadce0; margin-bottom: 15px;"></i>
                             <p style="font-size: 16px; color: #666; font-weight: 500;">暂无任务</p>
                             <p style="font-size: 13px; color: #999; margin-top: 5px;">新发布的任务将显示在这里</p>

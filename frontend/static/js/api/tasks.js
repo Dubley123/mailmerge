@@ -97,6 +97,16 @@ const TasksAPI = {
     },
 
     /**
+     * 一键催促
+     */
+    async remindTask(taskId) {
+        const result = await CommonAPI.post(`/api/tasks/${taskId}/remind`);
+        return result.success
+            ? { success: true, message: result.message || '已发送催促邮件' }
+            : { success: false, message: result.error || '催促失败' };
+    },
+
+    /**
      * 获取模板列表
      */
     async getTemplates() {

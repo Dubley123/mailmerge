@@ -14,6 +14,9 @@ from email.utils import make_msgid
 from typing import List, Dict, Optional
 import tempfile
 import json
+from backend.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class EmailService:
@@ -197,7 +200,7 @@ class EmailService:
                 # Using xatom to send ID command
                 mail.xatom('ID', '("name" "MailMerge" "version" "1.0.0")')
             except Exception as e:
-                print(f"IMAP ID command failed (ignoring): {e}")
+                logger.warning(f"IMAP ID command failed (ignoring): {e}")
 
             typ, data = mail.select("INBOX")
             if typ != 'OK':
@@ -246,6 +249,12 @@ class EmailService:
                     body = ""
                     attachments = []
                     
+                    # 为每封邮件创建独立的附件目录，防止重名冲突
+                    email_uid = email_id.decode() if isinstance(email_id, bytes) else str(email_id)
+                    safe_uid = "".join(c for c in email_uid if c.isalnum() or c in ('_', '-'))
+                    email_attach_dir = os.path.join(download_dir, safe_uid)
+                    os.makedirs(email_attach_dir, exist_ok=True)
+                    
                     if email_message.is_multipart():
                         for part in email_message.walk():
                             content_type = part.get_content_type()
@@ -264,7 +273,7 @@ class EmailService:
                                 if filename:
                                     filename = self._decode_mime_header(filename)
                                     # 保存附件
-                                    filepath = os.path.join(download_dir, filename)
+                                    filepath = os.path.join(email_attach_dir, filename)
                                     with open(filepath, "wb") as f:
                                         f.write(part.get_payload(decode=True))
                                     attachments.append(filepath)
@@ -291,7 +300,7 @@ class EmailService:
                     
                 except Exception as e:
                     # 单个邮件解析失败，继续处理其他邮件
-                    print(f"解析邮件 {email_id} 失败: {str(e)}")
+                    logger.error(f"Failed to parse email {email_id}: {str(e)}")
                     continue
             
             # 关闭连接

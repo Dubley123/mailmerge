@@ -26,6 +26,9 @@ from backend.storage_service import ensure_minio_running
 from backend.utils import ensure_utc
 from backend.utils.encryption import encrypt_value
 from backend.database.db_config import get_engine, get_session_factory
+from backend.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 def hash_password(password: str) -> str:
@@ -79,7 +82,7 @@ def validate_json_structure(data: dict) -> None:
                     f"Use 'task_id' instead."
                 )
     
-    print("✓ JSON structure validation passed")
+    logger.info("JSON structure validation passed")
 
 def load_default_data(session, data_file: str):
     """
@@ -89,7 +92,7 @@ def load_default_data(session, data_file: str):
         session: SQLAlchemy session
         data_file: Path to JSON file
     """
-    print(f"\nLoading default data from {data_file}...")
+    logger.info(f"Loading default data from {data_file}...")
     
     # Read JSON file
     with open(data_file, 'r', encoding='utf-8') as f:
@@ -103,7 +106,7 @@ def load_default_data(session, data_file: str):
     
     # 1. Load Departments
     if 'departments' in data:
-        print("  Loading departments...")
+        logger.info("Loading departments...")
         for dept_data in data['departments']:
             dept = Department(
                 name=dept_data['name'],
@@ -112,18 +115,18 @@ def load_default_data(session, data_file: str):
             session.flush()  # Get the ID
             dept_id_map[dept_data['name']] = dept.id
         session.commit()
-        print(f"    ✓ Loaded {len(data['departments'])} departments")
+        logger.info(f"Loaded {len(data['departments'])} departments")
     
     # 2. Load Teachers
     teacher_id_map = {}
     if 'teachers' in data:
-        print("  Loading teachers...")
+        logger.info("Loading teachers...")
         for teacher_data in data['teachers']:
             dept_name = teacher_data.get('department_name')
             dept_id = dept_id_map.get(dept_name)
             
             if dept_id is None:
-                print(f"    Warning: Department '{dept_name}' not found for teacher {teacher_data['name']}")
+                logger.warning(f"Department '{dept_name}' not found for teacher {teacher_data['name']}")
                 continue
             
             teacher = Teacher(
@@ -139,18 +142,18 @@ def load_default_data(session, data_file: str):
             session.flush()
             teacher_id_map[teacher.id] = teacher.id
         session.commit()
-        print(f"    ✓ Loaded {len(data['teachers'])} teachers")
+        logger.info(f"Loaded {len(data['teachers'])} teachers")
     
     # 3. Load Secretaries
     secretary_id_map = {}
     if 'secretaries' in data:
-        print("  Loading secretaries...")
+        logger.info("Loading secretaries...")
         for sec_data in data['secretaries']:
             dept_name = sec_data.get('department_name')
             dept_id = dept_id_map.get(dept_name)
             
             if dept_id is None:
-                print(f"    Warning: Department '{dept_name}' not found for secretary {sec_data['name']}")
+                logger.warning(f"Department '{dept_name}' not found for secretary {sec_data['name']}")
                 continue
             
             secretary = Secretary(
@@ -168,12 +171,12 @@ def load_default_data(session, data_file: str):
             session.flush()
             secretary_id_map[secretary.id] = secretary.id
         session.commit()
-        print(f"    ✓ Loaded {len(data['secretaries'])} secretaries")
+        logger.info(f"Loaded {len(data['secretaries'])} secretaries")
     
     # 4. Load Template Forms
     template_id_map = {}
     if 'template_forms' in data:
-        print("  Loading template forms...")
+        logger.info("Loading template forms...")
         for idx, tmpl_data in enumerate(data['template_forms']):
             template = TemplateForm(
                 name=tmpl_data['name'],
@@ -184,16 +187,16 @@ def load_default_data(session, data_file: str):
             session.flush()  # 获取自动生成的ID
             template_id_map[idx] = template.id
         session.commit()
-        print(f"    ✓ Loaded {len(data['template_forms'])} template forms")
+        logger.info(f"Loaded {len(data['template_forms'])} template forms")
     
     # 5. Load Template Form Fields
     if 'template_form_fields' in data:
-        print("  Loading template form fields...")
+        logger.info("Loading template form fields...")
         for field_data in data['template_form_fields']:
             # Get form_id from form_index
             form_index = field_data.get('form_index', 0)
             if form_index not in template_id_map:
-                print(f"    ⚠ Warning: form_index {form_index} not found, skipping field")
+                logger.warning(f"form_index {form_index} not found, skipping field")
                 continue
             
             form_id = template_id_map[form_index]
@@ -213,16 +216,16 @@ def load_default_data(session, data_file: str):
             )
             session.add(field)
         session.commit()
-        print(f"    ✓ Loaded {len(data['template_form_fields'])} template fields")
+        logger.info(f"Loaded {len(data['template_form_fields'])} template fields")
     
     # 6. Load Collect Tasks
     task_id_map = {}
     if 'collect_tasks' in data:
-        print("  Loading collect tasks...")
+        logger.info("Loading collect tasks...")
         for idx, task_data in enumerate(data['collect_tasks']):
             # Get template_id from first template
             if 0 not in template_id_map:
-                print("    ⚠ Warning: No template form created yet, skipping tasks")
+                logger.warning("No template form created yet, skipping tasks")
                 break
             
             template_id = template_id_map[0]
@@ -258,7 +261,7 @@ def load_default_data(session, data_file: str):
                 for target_data in task_data['targets']:
                     teacher_id = target_data.get('teacher_id')
                     if teacher_id not in teacher_id_map:
-                        print(f"    ⚠ Warning: teacher_id {teacher_id} not found, skipping target")
+                        logger.warning(f"teacher_id {teacher_id} not found, skipping target")
                         continue
                     
                     target = CollectTaskTarget(
@@ -268,12 +271,12 @@ def load_default_data(session, data_file: str):
                     session.add(target)
         
         session.commit()
-        print(f"    ✓ Loaded {len(data['collect_tasks'])} collect tasks")
+        logger.info(f"Loaded {len(data['collect_tasks'])} collect tasks")
     
     # 7. Load Sent Attachments
     sent_attach_id_map = {}
     if 'sent_attachments' in data:
-        print("  Loading sent attachments...")
+        logger.info("Loading sent attachments...")
         
         # Get attachment directory
         attachment_dir = str(Path(data_file).parent / "attachment")
@@ -290,10 +293,10 @@ def load_default_data(session, data_file: str):
                         from backend.storage_service import storage
                         # Use the file_path from JSON as target path
                         storage.upload(local_file, file_path)
-                        print(f"    ✓ Uploaded: {file_name} -> {file_path}")
+                        logger.info(f"Uploaded: {file_name} -> {file_path}")
                     except Exception as e:
                         error_msg = f"Failed to upload {file_name}: {e}"
-                        print(f"    ❌ {error_msg}")
+                        logger.error(error_msg)
                         raise RuntimeError(error_msg) from e
             
             attachment = SentAttachment(
@@ -306,11 +309,11 @@ def load_default_data(session, data_file: str):
             session.flush()
             sent_attach_id_map[idx] = attachment.id
         session.commit()
-        print(f"    ✓ Loaded {len(data['sent_attachments'])} sent attachments")
+        logger.info(f"Loaded {len(data['sent_attachments'])} sent attachments")
     
     # 9. Load Sent Emails
     if 'sent_emails' in data:
-        print("  Loading sent emails...")
+        logger.info("Loading sent emails...")
         # 默认使用第一个task和第一个attachment
         task_id = task_id_map.get(0) if task_id_map else None
         attachment_id = sent_attach_id_map.get(0) if sent_attach_id_map else None
@@ -338,12 +341,12 @@ def load_default_data(session, data_file: str):
             )
             session.add(email)
         session.commit()
-        print(f"    ✓ Loaded {len(data['sent_emails'])} sent emails")
+        logger.info(f"Loaded {len(data['sent_emails'])} sent emails")
     
     # 10. Load Received Attachments
     recv_attach_id_map = {}
     if 'received_attachments' in data:
-        print("  Loading received attachments...")
+        logger.info("Loading received attachments...")
         
         # Get attachment directory
         attachment_dir = str(Path(data_file).parent / "attachment")
@@ -360,10 +363,10 @@ def load_default_data(session, data_file: str):
                         from backend.storage_service import storage
                         # Use the file_path from JSON as target path
                         storage.upload(local_file, file_path)
-                        print(f"    ✓ Uploaded: {file_name} -> {file_path}")
+                        logger.info(f"Uploaded: {file_name} -> {file_path}")
                     except Exception as e:
                         error_msg = f"Failed to upload {file_name}: {e}"
-                        print(f"    ❌ {error_msg}")
+                        logger.error(error_msg)
                         raise RuntimeError(error_msg) from e
             
             attachment = ReceivedAttachment(
@@ -376,11 +379,11 @@ def load_default_data(session, data_file: str):
             session.flush()
             recv_attach_id_map[idx] = attachment.id
         session.commit()
-        print(f"    ✓ Loaded {len(data['received_attachments'])} received attachments")
+        logger.info(f"Loaded {len(data['received_attachments'])} received attachments")
     
     # 11. Load Received Emails
     if 'received_emails' in data:
-        print("  Loading received emails...")
+        logger.info("Loading received emails...")
         # 默认使用第一个task
         task_id = task_id_map.get(0) if task_id_map else None
         
@@ -403,22 +406,16 @@ def load_default_data(session, data_file: str):
             )
             session.add(email)
         session.commit()
-        print(f"    ✓ Loaded {len(data['received_emails'])} received emails")
+        logger.info(f"Loaded {len(data['received_emails'])} received emails")
     
-    print("\n✓ All default data loaded successfully")
+    logger.info("All default data loaded successfully")
 
 def set_default(data_file: str = None):
     if data_file is None:
         data_file = str(Path(__file__).parent / "default_data" / "default_data.json")
 
-    # Ensure MinIO running (attachments upload depends on storage)
-    try:
-        ensure_minio_running()
-        print("✓ MinIO ensured")
-    except Exception as e:
-        print(f"⚠ Warning: MinIO initialization failed: {e}")
-        print("  Default data load may fail if attachments need uploading.")
-
+    # Note: We assume MinIO is running and bucket exists (checked by caller)
+    
     # Create engine and session
     engine = get_engine(echo=False, poolclass=NullPool)
     SessionLocal = get_session_factory(engine)
@@ -427,15 +424,15 @@ def set_default(data_file: str = None):
     if data_file and os.path.exists(data_file):
         try:
             load_default_data(session, data_file)
-            print("\n✓ Default data inserted successfully.")
+            logger.info("Default data inserted successfully.")
         except Exception as e:
-            print(f"\n✗ Error loading default data: {e}")
+            logger.error(f"Error loading default data: {e}")
             session.rollback()
             raise
         finally:
             session.close()
     else:
-        print(f"No default data file found at: {data_file}")
+        logger.error(f"No default data file found at: {data_file}")
 
 
 if __name__ == '__main__':

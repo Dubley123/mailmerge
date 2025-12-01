@@ -5,10 +5,13 @@ from backend.database.models import (
     SentEmail, SentAttachment, EmailStatus, TaskStatus, TemplateForm
 )
 from backend.email_service import send_email
-from backend.helper.excel_utils import generate_template_excel
+from backend.utils.excel_utils import generate_template_excel
 from backend.utils.encryption import decrypt_value
 from backend.storage_service import storage
 from backend.utils import get_utc_now
+from backend.logger import get_logger
+
+logger = get_logger(__name__)
 
 def get_smtp_config(email_address: str):
     """Simple config guesser based on domain"""
@@ -28,19 +31,19 @@ def publish_task_emails(db: Session, task_id: int):
     """
     task = db.query(CollectTask).filter(CollectTask.id == task_id).first()
     if not task:
-        print(f"Task {task_id} not found")
+        logger.error(f"Task {task_id} not found")
         return
 
     secretary = db.query(Secretary).filter(Secretary.id == task.created_by).first()
     if not secretary or not secretary.mail_auth_code:
-        print(f"Secretary {task.created_by} has no auth code configured")
+        logger.error(f"Secretary {task.created_by} has no auth code configured")
         return
 
     # Decrypt auth code
     try:
         auth_code = decrypt_value(secretary.mail_auth_code)
     except Exception as e:
-        print(f"Failed to decrypt auth code for secretary {secretary.id}: {e}")
+        logger.error(f"Failed to decrypt auth code for secretary {secretary.id}: {e}")
         return
 
     # Generate Excel Template
@@ -52,15 +55,10 @@ def publish_task_emails(db: Session, task_id: int):
         # Generate with specific filename
         temp_excel_path = generate_template_excel(db, task.template_id, filename=f"{template_name}.xlsx")
     except Exception as e:
-        print(f"Failed to generate template excel: {e}")
+        logger.error(f"Failed to generate template excel: {e}")
         return
 
     # Upload template to MinIO (as SentAttachment)
-    # We upload it once and reuse it for all emails in this batch? 
-    # Or create one SentAttachment record per email? 
-    # Usually one attachment record per unique file is enough, but SentEmail links to SentAttachment 1:1 or N:1?
-    # SentEmail has attachment_id. SentAttachment is the file.
-    # Let's create one SentAttachment record for this task publication.
     
     file_name = f"{template_name}.xlsx"
     minio_path = f"minio://mailmerge/sent_attachment/task_{task.id}/{file_name}"
@@ -69,7 +67,7 @@ def publish_task_emails(db: Session, task_id: int):
         uploaded_path = storage.upload(temp_excel_path, minio_path)
         file_size = os.path.getsize(temp_excel_path)
     except Exception as e:
-        print(f"Failed to upload template to storage: {e}")
+        logger.error(f"Failed to upload template to storage: {e}")
         os.remove(temp_excel_path)
         return
 
@@ -104,7 +102,7 @@ def publish_task_emails(db: Session, task_id: int):
         }
 
         # Send Email
-        print(f"Sending email to {teacher.name} ({teacher.email})...")
+        logger.info(f"Sending email to {teacher.name} ({teacher.email})...")
         result = send_email(
             sender_email=secretary.email,
             sender_password=auth_code,
@@ -117,13 +115,18 @@ def publish_task_emails(db: Session, task_id: int):
         # Record SentEmail
         status = EmailStatus.SENT if result['success'] else EmailStatus.FAILED
         
+        # Remove attachments from content before saving to DB
+        db_content = email_content.copy()
+        if 'attachments' in db_content:
+            del db_content['attachments']
+
         sent_email = SentEmail(
             task_id=task.id,
             from_sec_id=secretary.id,
             to_tea_id=teacher.id,
             sent_at=get_utc_now() if result['success'] else None,
             status=status,
-            mail_content=email_content, # Store what was sent
+            mail_content=db_content, # Store what was sent (without attachments)
             attachment_id=sent_attachment.id,
             extra={"error": result.get('message')} if not result['success'] else None
         )

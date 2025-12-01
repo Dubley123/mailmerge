@@ -6,6 +6,9 @@ import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 import os
 from dotenv import load_dotenv
+from backend.logger import get_logger
+
+logger = get_logger(__name__)
 
 load_dotenv()
 
@@ -18,7 +21,7 @@ DB_PASSWORD = os.getenv("DB_PASSWORD", "")
 
 def create_database():
     """Create database if it doesn't exist"""
-    print(f"Creating database '{DB_NAME}' if not exists...")
+    logger.info(f"Creating database '{DB_NAME}' if not exists...")
     
     try:
         # Connect to PostgreSQL server (postgres database)
@@ -40,18 +43,18 @@ def create_database():
         exists = cursor.fetchone()
         
         if exists:
-            print(f"✓ Database '{DB_NAME}' already exists")
+            logger.info(f"Database '{DB_NAME}' already exists")
         else:
             # Create database
             cursor.execute(f'CREATE DATABASE {DB_NAME}')
-            print(f"✓ Database '{DB_NAME}' created successfully")
+            logger.info(f"Database '{DB_NAME}' created successfully")
         
         cursor.close()
         conn.close()
         return True
         
     except Exception as e:
-        print(f"✗ Error creating database: {e}")
+        logger.error(f"Error creating database: {e}")
         return False
 
 

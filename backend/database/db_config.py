@@ -7,6 +7,9 @@ from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import NullPool
 import os
 from dotenv import load_dotenv
+from backend.logger import get_logger
+
+logger = get_logger(__name__)
 
 # Load environment variables
 load_dotenv()
@@ -92,11 +95,11 @@ def ensure_database_exists():
         engine = get_engine()
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
-        print(f"✓ Database '{DB_NAME}' already exists")
+        logger.info(f"Database '{DB_NAME}' already exists")
         return False  # Database already exists
     except OperationalError:
         # Database doesn't exist, create it
-        print(f"Database '{DB_NAME}' does not exist, creating...")
+        logger.info(f"Database '{DB_NAME}' does not exist, creating...")
         
         # Connect to default 'postgres' database to create our database
         default_url = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/postgres"
@@ -105,10 +108,10 @@ def ensure_database_exists():
         try:
             with default_engine.connect() as conn:
                 conn.execute(text(f'CREATE DATABASE "{DB_NAME}"'))
-            print(f"✓ Database '{DB_NAME}' created successfully")
+            logger.info(f"Database '{DB_NAME}' created successfully")
             return True  # Database was newly created
         except Exception as e:
-            print(f"❌ Failed to create database: {e}")
+            logger.error(f"Failed to create database: {e}")
             raise
         finally:
             default_engine.dispose()
@@ -121,6 +124,7 @@ def test_connection():
     Returns:
         tuple: (success: bool, message: str)
     """
+    logger.info("Testing PostgreSQL connection...")
     try:
         engine = get_engine()
         with engine.connect() as conn:
@@ -136,10 +140,13 @@ if __name__ == "__main__":
     # Test database connection when run directly
     success, message = test_connection()
     if success:
-        print(f"✓ {message}")
-        print(f"  Database: {DB_NAME}")
-        print(f"  Host: {DB_HOST}:{DB_PORT}")
-        print(f"  User: {DB_USER}")
+        logger.info(f"{message}")
+        logger.info(f"  Database: {DB_NAME}")
+        logger.info(f"  Host: {DB_HOST}:{DB_PORT}")
+        logger.info(f"  User: {DB_USER}")
     else:
-        print(f"✗ {message}")
+        logger.error(f"{message}")
         exit(1)
+
+# Ensure FieldValidationRecord is imported so it's created
+from backend.database.models import FieldValidationRecord

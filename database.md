@@ -74,7 +74,7 @@
 | 字段名      | 类型         | 约束                                                         | 含义说明    |
 | ----------- | ------------ | ------------------------------------------------------------ | ----------- |
 | id          | BIGINT       | PRIMARY KEY                                                  | 模板唯一 ID |
-| name        | VARCHAR(100) | NOT NULL, UNIQUE                                             | 模板名称    |
+| name        | VARCHAR(100) | NOT NULL                                                     | 模板名称    |
 | description | TEXT         | NULL                                                         | 模板描述    |
 | created_by  | BIGINT       | NULL, FOREIGN KEY → Secretary(id)                            | 创建秘书ID  |
 | extra       | JSON         | NULL                                                         | 扩展字段（预留，默认NULL）    |
@@ -245,7 +245,7 @@
 | 字段名                | 类型                                            | 约束                                                         | 含义说明                                          |
 | --------------------- | ----------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------- |
 | id                    | BIGINT                                          | PRIMARY KEY                                                  | 唯一 ID                                           |
-| name                  | VARCHAR(255)                                    | NOT NULL, UNIQUE                                             | 任务名称，用于邮件主题匹配                        |
+| name                  | VARCHAR(255)                                    | NOT NULL                                             | 任务名称，用于邮件主题匹配                        |
 | description           | TEXT                                            | NULL                                                         | 任务描述                                          |
 | started_time          | DATETIME                                        | NULL                                                         | 任务实际开始的时间（教秘任务发布的时间）          |
 | deadline              | DATETIME                                        | NULL                                                         | 任务计划结束时间（可为空表示无截止）              |
@@ -282,3 +282,19 @@
 
 - INDEX(task_id)
 - INDEX(teacher_id)
+# 11. FieldValidationRecord（字段校验记录表）
+
+| 字段名 | 类型 | 约束 | 说明 |
+| :--- | :--- | :--- | :--- |
+| id | BIGINT | PRIMARY KEY, AUTO_INCREMENT | 唯一 ID |
+| aggregation_id | BIGINT | NOT NULL, FOREIGN KEY → Aggregation(id) | 关联汇总表 ID |
+| teacher_id | BIGINT | NOT NULL, FOREIGN KEY → Teacher(id) | 关联教师 ID |
+| field_name | VARCHAR(100) | NOT NULL | 字段名称 |
+| error_type | ENUM('MISSING', 'INVALID') | NOT NULL | 错误类型 |
+| error_description | TEXT | NULL | 错误描述 |
+| created_at | DATETIME | NOT NULL, DEFAULT CURRENT_TIMESTAMP | 创建时间 |
+
+**索引：**
+- `idx_validation_agg` (aggregation_id)
+- `idx_validation_teacher` (teacher_id)
+- `uq_agg_teacher_field` (aggregation_id, teacher_id, field_name) - 唯一约束
