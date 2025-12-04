@@ -22,7 +22,8 @@ class Config:
         BASE_URL: Optional[str] = None,
         MODEL_NAME: Optional[str] = None,
         MAX_RETRY: Optional[int] = None,
-        TIMEOUT: Optional[int] = None
+        TIMEOUT: Optional[int] = None,
+        ENABLED: bool = True
     ):
         # LLM配置
         self.API_KEY = API_KEY
@@ -30,6 +31,7 @@ class Config:
         self.MODEL_NAME = MODEL_NAME
         self.MAX_RETRY = MAX_RETRY or 3
         self.TIMEOUT = TIMEOUT or 60
+        self.ENABLED = ENABLED
     
     @classmethod
     def from_env(cls):
@@ -39,5 +41,6 @@ class Config:
             BASE_URL=os.getenv("BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
             MODEL_NAME=os.getenv("MODEL_NAME", "qwen-plus"),
             MAX_RETRY=int(os.getenv("MAX_RETRY", "3")),
-            TIMEOUT=int(os.getenv("LLM_TIMEOUT", "60"))
+            TIMEOUT=int(os.getenv("LLM_TIMEOUT", "60")),
+            ENABLED=os.getenv("LLM_ENABLED", "true").lower() == "true"
         )

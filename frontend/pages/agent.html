@@ -1,0 +1,50 @@
+<!-- 智能助手页面 -->
+<link rel="stylesheet" href="/frontend/static/css/agent.css?v=576e3b93">
+
+<div class="agent-container">
+    <!-- 左侧会话列表 -->
+    <div class="agent-sidebar">
+        <div class="agent-sidebar-header">
+            <button class="new-chat-btn" id="newChatBtn">
+                <span>+</span> 新建对话
+            </button>
+        </div>
+        <div class="session-list" id="sessionList">
+            <!-- 会话列表项将通过 JS 动态生成 -->
+        </div>
+    </div>
+
+    <!-- 右侧聊天区域 -->
+    <div class="chat-area">
+        <div class="chat-header">
+            <div class="chat-title" id="currentChatTitle">新对话</div>
+            <div class="chat-actions">
+                <!-- 可以在这里添加更多操作按钮 -->
+            </div>
+        </div>
+
+        <div class="chat-messages" id="chatMessages">
+            <!-- 消息内容将通过 JS 动态生成 -->
+            <div class="empty-state" id="emptyState">
+                <div class="empty-state-icon">🤖</div>
+                <div class="empty-state-text">我是您的智能助手</div>
+                <div class="empty-state-subtext">我可以帮您查询数据、创建模板、管理任务等。请在下方输入您的需求。</div>
+            </div>
+        </div>
+
+        <div class="chat-input-container">
+            <div class="chat-input-wrapper">
+                <textarea class="chat-input" id="chatInput" placeholder="输入您的问题..." rows="1"></textarea>
+                <button class="send-btn" id="sendBtn" disabled>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="22" y1="2" x2="11" y2="13"></line>
+                        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="/frontend/static/js/api/agent.js?v=dc89c06a"></script>
+<script src="/frontend/static/js/agent.js?v=059719b3"></script>

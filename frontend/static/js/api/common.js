@@ -107,6 +107,16 @@ const API = {
     },
 
     /**
+     * PATCH 请求
+     */
+    async patch(url, data = {}) {
+        return this.request(url, {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+        });
+    },
+
+    /**
      * DELETE 请求
      */
     async delete(url) {

@@ -106,6 +106,7 @@ class Secretary(Base):
     sent_emails = relationship("SentEmail", back_populates="secretary")
     received_emails = relationship("ReceivedEmail", back_populates="secretary")
     aggregations = relationship("Aggregation", back_populates="generator")
+    chat_sessions = relationship("ChatSession", back_populates="secretary")
 
     __table_args__ = (
         Index('idx_secretary_department', 'department_id'),
@@ -155,8 +156,6 @@ class TemplateFormField(Base):
     #   "max": 100,
     #   "min_length": 1,
     #   "max_length": 100,
-    #   "regex": "^\\d{11}$",
-    #   "options": ["A","B"]
     # }
     validation_rule = Column(JSON, nullable=True, comment='字段校验规则，JSON 格式')
     extra = Column(JSON, nullable=True, comment='扩展字段')
@@ -388,5 +387,38 @@ class FieldValidationRecord(Base):
     )
 
 
-# Add mail_auth_code to Secretary model
-# Note: This is a manual edit simulation. I will use replace_string_in_file for the actual edit.
+class ChatSession(Base):
+    """对话会话表"""
+    __tablename__ = 'chat_session'
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True, comment='会话唯一ID')
+    secretary_id = Column(BigInteger, ForeignKey('secretary.id'), nullable=False, comment='所属秘书ID')
+    title = Column(String(255), nullable=True, comment='会话标题')
+    created_at = Column(DateTime(timezone=True), nullable=False, default=get_utc_now, comment='创建时间')
+    updated_at = Column(DateTime(timezone=True), nullable=False, default=get_utc_now, onupdate=get_utc_now, comment='更新时间')
+
+    # Relationships
+    secretary = relationship("Secretary", back_populates="chat_sessions")
+    messages = relationship("SessionMessage", back_populates="session", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        Index('idx_chat_session_secretary', 'secretary_id'),
+    )
+
+
+class SessionMessage(Base):
+    """会话消息表"""
+    __tablename__ = 'session_message'
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True, comment='消息唯一ID')
+    session_id = Column(BigInteger, ForeignKey('chat_session.id'), nullable=False, comment='所属会话ID')
+    role = Column(String(50), nullable=False, comment='角色: user/assistant')
+    content = Column(Text, nullable=False, comment='消息内容')
+    created_at = Column(DateTime(timezone=True), nullable=False, default=get_utc_now, comment='创建时间')
+
+    # Relationships
+    session = relationship("ChatSession", back_populates="messages")
+
+    __table_args__ = (
+        Index('idx_session_message_session', 'session_id'),
+    )

@@ -19,7 +19,7 @@ from backend.storage_service import ensure_minio_running
 from backend.database.reset_db import reset_database
 from backend.storage_service.reset_minio import reset_minio
 from backend.database.set_default import set_default
-from backend.api import auth, dashboard, emails, tasks, teachers, templates, aggregations, settings, mailbox, files
+from backend.api import auth, dashboard, emails, tasks, teachers, templates, aggregations, settings, mailbox, files, agent
 from backend.scheduler import start_scheduler, stop_scheduler
 
 logger = get_logger(__name__)
@@ -133,6 +133,7 @@ def main():
         app.include_router(settings.router, prefix="/api/settings", tags=["Settings"])
         app.include_router(mailbox.router, prefix="/api/mailbox", tags=["Mailbox"])
         app.include_router(files.router, prefix="/api/files", tags=["Files"])
+        app.include_router(agent.router, prefix="/api/agent", tags=["Agent"])
 
         # Mount Frontend
         frontend_path = os.path.join(os.path.dirname(__file__), "frontend")

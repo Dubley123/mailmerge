@@ -9,6 +9,9 @@ from backend.utils.template_utils import create_template_core
 from ..config import Config
 from ..llm_client import LLMClient
 from .prompt_generator import generate_create_template_prompt
+from backend.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 def handle_create_template(user_input: str, config: Config, user_id: int = None) -> Dict[str, Any]:
@@ -61,10 +64,11 @@ def handle_create_template(user_input: str, config: Config, user_id: int = None)
     ]
     
     for attempt in range(1, max_retries + 1):
-        print(f"[INFO] 创建模板尝试 {attempt}/{max_retries}")
+        logger.info(f"创建模板尝试 {attempt}/{max_retries}")
         
         try:
             # 调用LLM生成模板定义
+            logger.info("正在调用 LLM 生成模板定义...")
             llm_response = llm_client.chat_with_history(
                 messages=conversation_history,
                 tools=tools,
@@ -74,7 +78,7 @@ def handle_create_template(user_input: str, config: Config, user_id: int = None)
             # 检查是否是Tool Calling响应
             if llm_response["type"] != "tool_call":
                 error_msg = "LLM未返回create_template工具调用"
-                print(f"[ERROR] {error_msg}")
+                logger.error(error_msg)
                 conversation_history.append({
                     "role": "assistant",
                     "content": llm_response["content"]
@@ -89,15 +93,16 @@ def handle_create_template(user_input: str, config: Config, user_id: int = None)
             tool_call = llm_response["tool_calls"][0]
             if tool_call["name"] != "create_template":
                 error_msg = f"LLM调用了错误的工具: {tool_call['name']}"
-                print(f"[ERROR] {error_msg}")
+                logger.error(error_msg)
                 continue
             
             template_data = tool_call["arguments"]
-            print(f"[INFO] LLM生成模板定义: {template_data}")
+            logger.info(f"LLM生成模板定义: {template_data}")
             
             # 调用核心业务逻辑创建模板
             db = SessionLocal()
             try:
+                logger.info("正在调用核心业务逻辑创建模板...")
                 result = create_template_core(
                     name=template_data.get("name"),
                     fields=template_data.get("fields", []),
@@ -107,7 +112,7 @@ def handle_create_template(user_input: str, config: Config, user_id: int = None)
                 )
                 
                 if result["success"]:
-                    print(f"[SUCCESS] 模板创建成功: {result}")
+                    logger.info(f"模板创建成功: {result}")
                     return {
                         "status": "success",
                         "data": {
@@ -119,7 +124,7 @@ def handle_create_template(user_input: str, config: Config, user_id: int = None)
                 else:
                     # 核心业务逻辑返回失败，反馈给LLM
                     error_msg = result["message"]
-                    print(f"[WARN] 模板创建失败: {error_msg}")
+                    logger.warning(f"模板创建失败: {error_msg}")
                     conversation_history.append({
                         "role": "assistant",
                         "content": None,
@@ -133,13 +138,14 @@ def handle_create_template(user_input: str, config: Config, user_id: int = None)
                 db.close()
         
         except Exception as e:
-            print(f"[ERROR] 处理过程中发生异常: {e}")
+            logger.error(f"处理过程中发生异常: {e}", exc_info=True)
             conversation_history.append({
                 "role": "user",
                 "content": f"发生错误：{str(e)}\n请重新生成模板定义。"
             })
     
     # 所有重试都失败
+    logger.error(f"经过 {max_retries} 次尝试仍未成功创建模板")
     return {
         "status": "error",
         "data": {

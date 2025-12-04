@@ -3,8 +3,7 @@ SQL Query Prompt Generator
 负责生成SQL查询相关的Prompt和工具定义
 """
 from typing import Dict, Any, List
-from pathlib import Path
-import re
+from .schema_loader import schema_loader
 
 
 def generate_sql_query_prompt(user_id: int = None) -> Dict[str, Any]:
@@ -21,8 +20,8 @@ def generate_sql_query_prompt(user_id: int = None) -> Dict[str, Any]:
         }
     """
     # 加载数据库Schema
-    schema_text = _load_database_schema()
-    allowed_tables = _extract_table_names(schema_text)
+    schema_text = schema_loader.load_schema()
+    allowed_tables = schema_loader.get_table_names()
     
     # 构建权限控制说明
     permission_instruction = ""
@@ -47,9 +46,17 @@ def generate_sql_query_prompt(user_id: int = None) -> Dict[str, Any]:
      - 查询接收邮件：`WHERE to_sec_id = {user_id}`
      - 查询关联表（如 `template_form_field`）：必须通过 JOIN 确保主表（`template_form`）是当前用户创建的。
 
-3. **越权请求处理**：
-   - 如果用户显式要求查询超出其权限范围的数据（例如"查询所有人的任务"），你必须**拒绝**该越权请求，仍然强制加上 `WHERE created_by = {user_id}` 等限制条件。
-   - 同时，你必须在 `run_sql` 工具的 `permission_warning` 字段中说明情况。
+3. **越权与敏感信息请求处理**：
+   - **越权数据**：如果用户显式要求查询超出其权限范围的数据（例如"查询所有人的任务"），你必须**拒绝**该越权请求，仍然强制加上 `WHERE created_by = {user_id}` 等限制条件。
+   - **敏感字段**：如果用户请求查询包含敏感信息的字段（如 `password_hash`, `mail_auth_code`, `extra` 中的敏感配置等），你必须**拒绝**返回这些字段，将其从 SELECT 列表中移除。
+   - **处理方式**：在执行上述过滤的同时，你必须在 `run_sql` 工具的 `permission_warning` 字段中说明情况（例如："已为您过滤显示本人的任务数据" 或 "出于安全考虑，已隐藏密码等敏感信息"）。
+
+4. **字段选择优化规则**：
+   - **原则**：除非用户显式要求查询特定字段，否则应避免使用 `SELECT *`，而是只选择具有**业务展示意义**的字段。
+   - **排除非重要字段**：对于 `created_at`, `updated_at`, `extra`, `xxx_id` (外键ID) 等字段，除非它们对当前查询有明确的业务含义，否则默认不查询。
+   - **示例**：
+     - **不展示**：查询"教师信息"时，`created_at` 和 `updated_at` 通常是系统维护字段，无展示意义，应排除。
+     - **展示**：查询"任务"时，`created_at` (创建时间), `started_time` (开始时间), `deadline` (截止时间) 对用户了解任务进度至关重要，**应该**包含在查询结果中。
 """
     else:
         permission_instruction = "\n## 权限控制\n当前未提供用户ID，假设拥有全局查询权限（仅用于测试环境）。"
@@ -127,53 +134,3 @@ def generate_sql_query_prompt(user_id: int = None) -> Dict[str, Any]:
         "tools": tools,
         "allowed_tables": allowed_tables
     }
-
-
-def _load_database_schema() -> str:
-    """从database.md加载数据库Schema
-    
-    Returns:
-        str: Schema文本
-    """
-    # 默认路径：项目根目录下的database.md
-    db_schema_path = Path(__file__).parent.parent.parent.parent / "database.md"
-    
-    if not db_schema_path.exists():
-        return "## 数据库Schema未找到\n请确保database.md文件存在"
-    
-    try:
-        with open(db_schema_path, "r", encoding="utf-8") as f:
-            return f.read()
-    except Exception as e:
-        return f"## 读取数据库Schema失败\n错误: {str(e)}"
-
-
-def _extract_table_names(schema_text: str) -> List[str]:
-    """从Schema文本中提取表名列表
-    
-    Args:
-        schema_text: database.md的内容
-        
-    Returns:
-        List[str]: 表名列表
-    """
-    # 匹配表名（支持多种格式）
-    # 格式1: ### 表名: xxx
-    # 格式2: ## xxx 表
-    # 格式3: CREATE TABLE xxx
-    
-    tables = set()
-    
-    # 匹配 ### 表名: xxx
-    pattern1 = r'###\s*表名[:：]\s*`?(\w+)`?'
-    tables.update(re.findall(pattern1, schema_text))
-    
-    # 匹配 ## xxx 表
-    pattern2 = r'##\s+(\w+)\s*表'
-    tables.update(re.findall(pattern2, schema_text))
-    
-    # 匹配 CREATE TABLE xxx
-    pattern3 = r'CREATE TABLE\s+`?(\w+)`?'
-    tables.update(re.findall(pattern3, schema_text, re.IGNORECASE))
-    
-    return sorted(list(tables))

@@ -10,6 +10,9 @@ from ..llm_client import LLMClient
 from .prompt_generator import generate_sql_query_prompt
 from .sql_validator import SQLValidator
 from .sql_executor import SQLExecutor
+from backend.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 def handle_sql_query(user_input: str, config: Config, user_id: int = None) -> Dict[str, Any]:
@@ -58,10 +61,11 @@ def handle_sql_query(user_input: str, config: Config, user_id: int = None) -> Di
     ]
     
     for attempt in range(1, max_retries + 1):
-        print(f"[INFO] SQL查询尝试 {attempt}/{max_retries}")
+        logger.info(f"SQL查询尝试 {attempt}/{max_retries}")
         
         try:
             # 调用LLM生成SQL
+            logger.info("正在调用 LLM 生成 SQL...")
             llm_response = llm_client.chat_with_history(
                 messages=conversation_history,
                 tools=tools,
@@ -71,7 +75,7 @@ def handle_sql_query(user_input: str, config: Config, user_id: int = None) -> Di
             # 检查是否是Tool Calling响应
             if llm_response["type"] != "tool_call":
                 error_msg = "LLM未返回SQL工具调用"
-                print(f"[ERROR] {error_msg}")
+                logger.error(error_msg)
                 conversation_history.append({
                     "role": "assistant",
                     "content": llm_response["content"]
@@ -86,21 +90,21 @@ def handle_sql_query(user_input: str, config: Config, user_id: int = None) -> Di
             tool_call = llm_response["tool_calls"][0]
             if tool_call["name"] != "run_sql":
                 error_msg = f"LLM调用了错误的工具: {tool_call['name']}"
-                print(f"[ERROR] {error_msg}")
+                logger.error(error_msg)
                 continue
             
             arguments = tool_call["arguments"]
             sql = arguments.get("sql", "").strip()
             permission_warning = arguments.get("permission_warning")
             
-            print(f"[INFO] LLM生成SQL: {sql}")
+            logger.info(f"LLM生成SQL: {sql}")
             if permission_warning:
-                print(f"[WARN] 权限警告: {permission_warning}")
+                logger.warning(f"权限警告: {permission_warning}")
             
             # 校验SQL安全性
             is_valid, validation_msg = validator.validate(sql, allowed_tables)
             if not is_valid:
-                print(f"[WARN] SQL校验失败: {validation_msg}")
+                logger.warning(f"SQL校验失败: {validation_msg}")
                 # 反馈给LLM重新生成
                 conversation_history.append({
                     "role": "assistant",
@@ -114,17 +118,18 @@ def handle_sql_query(user_input: str, config: Config, user_id: int = None) -> Di
                 continue
             
             # 执行SQL
+            logger.info("正在执行 SQL 查询...")
             result = executor.execute(sql)
             
             if result["status"] == "success":
-                print(f"[SUCCESS] SQL执行成功，返回 {result['data']['row_count']} 行")
+                logger.info(f"SQL执行成功，返回 {result['data']['row_count']} 行")
                 # 将权限警告添加到返回结果中
                 result["data"]["permission_warning"] = permission_warning
                 return result
             else:
                 # SQL执行失败，反馈给LLM
                 error_msg = result["data"]["message"]
-                print(f"[WARN] SQL执行失败: {error_msg}")
+                logger.warning(f"SQL执行失败: {error_msg}")
                 conversation_history.append({
                     "role": "assistant",
                     "content": None,
@@ -136,13 +141,14 @@ def handle_sql_query(user_input: str, config: Config, user_id: int = None) -> Di
                 })
         
         except Exception as e:
-            print(f"[ERROR] 处理过程中发生异常: {e}")
+            logger.error(f"处理过程中发生异常: {e}", exc_info=True)
             conversation_history.append({
                 "role": "user",
                 "content": f"发生错误：{str(e)}\n请重新生成SQL。"
             })
     
     # 所有重试都失败
+    logger.error(f"经过 {max_retries} 次尝试仍未成功生成有效的SQL查询")
     return {
         "status": "error",
         "data": {

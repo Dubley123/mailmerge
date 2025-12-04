@@ -71,6 +71,21 @@ const Utils = {
     },
 
     /**
+     * 转义 HTML 特殊字符
+     */
+    escapeHtml(text) {
+        if (!text) return '';
+        const map = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        };
+        return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+    },
+
+    /**
      * 格式化日期
      */
     formatDate(date) {

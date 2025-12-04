@@ -27,6 +27,9 @@ STATIC_FILES = {
     "static/js/navigation.js": ["pages/dashboard.html"],
     "static/css/mailbox.css": ["pages/mailbox.html"],
     "static/js/api/mailbox.js": ["pages/mailbox.html"],
+    "static/css/agent.css": ["pages/agent.html"],
+    "static/js/api/agent.js": ["pages/agent.html"],
+    "static/js/agent.js": ["pages/agent.html"],
 }
 
 
