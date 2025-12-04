@@ -17,13 +17,11 @@ from backend.database.db_config import get_db_session
 from backend.database.models import TemplateForm, TemplateFormField, Secretary
 from backend.api.auth import get_current_user
 from backend.logger import get_logger
+from backend.utils.template_utils import create_template_core, update_template_core, ALLOWED_TYPES
 
 logger = get_logger(__name__)
 
 router = APIRouter()
-
-# Allowed validation types for `validation_rule.type`
-ALLOWED_TYPES = {'TEXT','INTEGER','FLOAT','DATE','DATETIME','BOOLEAN','EMAIL','PHONE','ID_CARD','EMPLOYEE_ID'}
 
 
 # ==================== Pydantic 模型 ====================
@@ -174,67 +172,32 @@ async def create_template(
     """
     创建新模板
     """
-    try:
-        # 检查模板名称是否已存在
-        existing = db.query(TemplateForm).filter(
-            TemplateForm.name == request.name,
-            TemplateForm.created_by == current_user.id
-        ).first()
-        
-        if existing:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="模板名称已存在"
-            )
-        
-        # 创建模板
-        new_template = TemplateForm(
-            name=request.name,
-            description=request.description,
-            created_by=current_user.id,
-            extra=None
-        )
-        
-        db.add(new_template)
-        db.flush()
-        
-        # 创建字段
-        for field_data in request.fields:
-            # Validate validation_rule if provided
-            if field_data.validation_rule is not None and isinstance(field_data.validation_rule, dict):
-                vtype = field_data.validation_rule.get('type')
-                if vtype is not None and not isinstance(vtype, str):
-                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"validation_rule.type must be a string")
-                if vtype and vtype.upper() not in ALLOWED_TYPES:
-                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid validation_rule.type: {vtype}")
-            new_field = TemplateFormField(
-                form_id=new_template.id,
-                display_name=field_data.display_name,
-                validation_rule=field_data.validation_rule,
-                ord=field_data.ord
-            )
-            db.add(new_field)
-        
-        db.commit()
-        
-        return {
-            "success": True,
-            "message": "模板创建成功",
-            "data": {"template_id": new_template.id}
+    # 将 Pydantic 模型转换为字典列表
+    fields_data = [
+        {
+            "display_name": field.display_name,
+            "validation_rule": field.validation_rule,
+            "ord": field.ord
         }
+        for field in request.fields
+    ]
     
-    except HTTPException:
-        db.rollback()
-        raise
-    except Exception as e:
-        db.rollback()
-        logger.error(f"Failed to create template: {str(e)}")
-        logger.error(f"Request data: name={request.name}, fields={request.fields}")
-        import traceback
-        logger.error(traceback.format_exc())
+    # 调用核心业务逻辑
+    result = create_template_core(
+        name=request.name,
+        fields=fields_data,
+        description=request.description,
+        created_by=current_user.id,
+        db=db
+    )
+    
+    # 根据结果返回 HTTP 响应
+    if result["success"]:
+        return result
+    else:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"创建模板失败：{str(e)}"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=result["message"]
         )
 
 
@@ -248,78 +211,41 @@ async def update_template(
     """
     更新模板
     """
-    template = db.query(TemplateForm).filter(
-        TemplateForm.id == template_id,
-        TemplateForm.created_by == current_user.id
-    ).first()
+    # 将 Pydantic 模型转换为字典列表
+    fields_data = None
+    if request.fields is not None:
+        fields_data = [
+            {
+                "display_name": field.display_name,
+                "validation_rule": field.validation_rule,
+                "ord": field.ord
+            }
+            for field in request.fields
+        ]
     
-    if not template:
+    # 调用核心业务逻辑
+    result = update_template_core(
+        template_id=template_id,
+        name=request.name,
+        fields=fields_data,
+        description=request.description,
+        user_id=current_user.id,
+        db=db
+    )
+    
+    # 根据结果返回 HTTP 响应
+    if result["success"]:
+        return result
+    else:
+        # 根据错误信息决定状态码
+        if "不存在" in result["message"] or "无权访问" in result["message"]:
+            status_code = status.HTTP_404_NOT_FOUND
+        else:
+            status_code = status.HTTP_400_BAD_REQUEST
+        
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="模板不存在或无权访问"
-        )
-    
-    try:
-        # 更新模板名称
-        if request.name is not None:
-            # 检查名称是否重复
-            existing = db.query(TemplateForm).filter(
-                TemplateForm.name == request.name,
-                TemplateForm.created_by == current_user.id,
-                TemplateForm.id != template_id
-            ).first()
-            
-            if existing:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="模板名称已存在"
-                )
-            
-            template.name = request.name
-        
-        # 更新描述
-        if request.description is not None:
-            template.description = request.description
-        
-        # 更新字段
-        if request.fields is not None:
-            # 删除旧字段
-            db.query(TemplateFormField).filter(
-                TemplateFormField.form_id == template_id
-            ).delete()
-            
-            # 添加新字段
-            for field_data in request.fields:
-                # Validate validation_rule if provided
-                if field_data.validation_rule is not None and isinstance(field_data.validation_rule, dict):
-                    vtype = field_data.validation_rule.get('type')
-                    if vtype is not None and not isinstance(vtype, str):
-                        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"validation_rule.type must be a string")
-                    if vtype and vtype.upper() not in ALLOWED_TYPES:
-                        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid validation_rule.type: {vtype}")
-                new_field = TemplateFormField(
-                    form_id=template_id,
-                    display_name=field_data.display_name,
-                    validation_rule=field_data.validation_rule,
-                    ord=field_data.ord
-                )
-                db.add(new_field)
-        
-        db.commit()
-        
-        return {
-            "success": True,
-            "message": "模板更新成功"
-        }
-    
-    except HTTPException:
-        db.rollback()
-        raise
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"更新模板失败：{str(e)}"
+            status_code=status_code,
+            detail=result["message"]
         )
 
 
@@ -430,56 +356,6 @@ async def parse_excel(
             detail=f"解析 Excel 失败：{str(e)}"
         )
 
-
-def infer_field_type(sheet, column_index: int) -> str:
-    """
-    根据列的数据推断字段类型
-    检查前10行数据（跳过表头）
-    """
-    # 默认类型
-    default_type = 'TEXT'
-    
-    # 收集样本数据
-    samples = []
-    for row in sheet.iter_rows(min_row=2, max_row=11, min_col=column_index, max_col=column_index):
-        cell = row[0]
-        if cell.value is not None and str(cell.value).strip():
-            samples.append(cell)
-    
-    if not samples:
-        return default_type
-    
-    # 检查是否所有样本都是数字
-    all_numbers = all(_is_number(cell.value) for cell in samples)
-    if all_numbers:
-        # Check whether all are integers
-        all_int = all(float(cell.value).is_integer() for cell in samples)
-        return 'INTEGER' if all_int else 'FLOAT'
-    
-    # 检查是否有日期格式
-    has_date = any(_is_date_cell(cell) for cell in samples)
-    if has_date:
-        return 'DATE'
-    
-    # 检查是否有时间格式
-    has_time = any(_is_time_cell(cell) for cell in samples)
-    if has_time:
-        return 'TIME'
-    
-    # 检查是否是布尔值
-    all_boolean = all(_is_boolean(cell.value) for cell in samples)
-    if all_boolean:
-        return 'BOOLEAN'
-    
-    # 检查是否是选项（重复值较少）
-    unique_values = set(str(cell.value).strip() for cell in samples)
-    if len(unique_values) <= 5 and len(samples) >= 5:
-        # 如果唯一值较少，可能是单选或多选
-        return 'RADIO'
-    
-    return default_type
-
-
 def extract_column_validation(sheet, column_index: int) -> dict:
     """
     Extract a validation_rule dict from openpyxl sheet for a column (based on header cell/column validations)
@@ -575,46 +451,95 @@ def extract_column_validation(sheet, column_index: int) -> dict:
     return rule
 
 
-def _is_number(value) -> bool:
-    """判断是否为数字"""
-    try:
-        float(value)
-        return True
-    except (ValueError, TypeError):
-        return False
-
-
-def _is_date_cell(cell: Cell) -> bool:
-    """判断是否为日期单元格"""
-    if cell.is_date:
-        return True
+# def infer_field_type(sheet, column_index: int) -> str:
+#     """
+#     根据列的数据推断字段类型
+#     检查前10行数据（跳过表头）
+#     """
+#     # 默认类型
+#     default_type = 'TEXT'
     
-    # 检查格式代码
-    if cell.number_format:
-        date_formats = ['yyyy', 'yy', 'mm', 'dd', 'd/m', 'm/d']
-        format_lower = cell.number_format.lower()
-        return any(fmt in format_lower for fmt in date_formats)
+#     # 收集样本数据
+#     samples = []
+#     for row in sheet.iter_rows(min_row=2, max_row=11, min_col=column_index, max_col=column_index):
+#         cell = row[0]
+#         if cell.value is not None and str(cell.value).strip():
+#             samples.append(cell)
     
-    return False
+#     if not samples:
+#         return default_type
+    
+#     # 检查是否所有样本都是数字
+#     all_numbers = all(_is_number(cell.value) for cell in samples)
+#     if all_numbers:
+#         # Check whether all are integers
+#         all_int = all(float(cell.value).is_integer() for cell in samples)
+#         return 'INTEGER' if all_int else 'FLOAT'
+    
+#     # 检查是否有日期格式
+#     has_date = any(_is_date_cell(cell) for cell in samples)
+#     if has_date:
+#         return 'DATE'
+    
+#     # 检查是否有时间格式
+#     has_time = any(_is_time_cell(cell) for cell in samples)
+#     if has_time:
+#         return 'TIME'
+    
+#     # 检查是否是布尔值
+#     all_boolean = all(_is_boolean(cell.value) for cell in samples)
+#     if all_boolean:
+#         return 'BOOLEAN'
+    
+#     # 检查是否是选项（重复值较少）
+#     unique_values = set(str(cell.value).strip() for cell in samples)
+#     if len(unique_values) <= 5 and len(samples) >= 5:
+#         # 如果唯一值较少，可能是单选或多选
+#         return 'RADIO'
+    
+#     return default_type
 
 
-def _is_time_cell(cell: Cell) -> bool:
-    """判断是否为时间单元格"""
-    if cell.number_format:
-        time_formats = ['h:mm', 'hh:mm', 'h:mm:ss']
-        format_lower = cell.number_format.lower()
-        return any(fmt in format_lower for fmt in time_formats)
-    
-    return False
+# def _is_number(value) -> bool:
+#     """判断是否为数字"""
+#     try:
+#         float(value)
+#         return True
+#     except (ValueError, TypeError):
+#         return False
 
 
-def _is_boolean(value) -> bool:
-    """判断是否为布尔值"""
-    if isinstance(value, bool):
-        return True
+# def _is_date_cell(cell: Cell) -> bool:
+#     """判断是否为日期单元格"""
+#     if cell.is_date:
+#         return True
     
-    if isinstance(value, str):
-        value_lower = value.lower().strip()
-        return value_lower in ['true', 'false', 'yes', 'no', '是', '否', '对', '错', '1', '0']
+#     # 检查格式代码
+#     if cell.number_format:
+#         date_formats = ['yyyy', 'yy', 'mm', 'dd', 'd/m', 'm/d']
+#         format_lower = cell.number_format.lower()
+#         return any(fmt in format_lower for fmt in date_formats)
     
-    return False
+#     return False
+
+
+# def _is_time_cell(cell: Cell) -> bool:
+#     """判断是否为时间单元格"""
+#     if cell.number_format:
+#         time_formats = ['h:mm', 'hh:mm', 'h:mm:ss']
+#         format_lower = cell.number_format.lower()
+#         return any(fmt in format_lower for fmt in time_formats)
+    
+#     return False
+
+
+# def _is_boolean(value) -> bool:
+#     """判断是否为布尔值"""
+#     if isinstance(value, bool):
+#         return True
+    
+#     if isinstance(value, str):
+#         value_lower = value.lower().strip()
+#         return value_lower in ['true', 'false', 'yes', 'no', '是', '否', '对', '错', '1', '0']
+    
+#     return False

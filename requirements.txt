@@ -13,3 +13,6 @@ minio==7.2.19
 APScheduler==3.11.1
 cryptography==46.0.3
 PyYAML
+# Agent Service dependencies
+openai>=1.0.0
+sqlglot>=20.0.0
