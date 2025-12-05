@@ -14,7 +14,7 @@ from backend.logger import get_logger
 logger = get_logger(__name__)
 
 
-def handle_create_template(user_input: str, config: Config, user_id: int = None) -> Dict[str, Any]:
+def handle_create_template(user_input: str, user_id: int = None) -> Dict[str, Any]:
     """创建模板ACTION的处理入口
     
     工作流程：
@@ -25,7 +25,6 @@ def handle_create_template(user_input: str, config: Config, user_id: int = None)
     
     Args:
         user_input: 用户的自然语言创建模板请求
-        config: 配置对象
         user_id: 用户ID（必须提供）
         
     Returns:
@@ -48,7 +47,8 @@ def handle_create_template(user_input: str, config: Config, user_id: int = None)
         }
     
     # 初始化组件
-    llm_client = LLMClient(config)
+    config = Config.from_env()
+    llm_client = LLMClient()
     SessionLocal = get_session_factory()
     
     # 生成Prompt和工具定义

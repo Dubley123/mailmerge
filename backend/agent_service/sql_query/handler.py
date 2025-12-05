@@ -15,7 +15,7 @@ from backend.logger import get_logger
 logger = get_logger(__name__)
 
 
-def handle_sql_query(user_input: str, config: Config, user_id: int = None) -> Dict[str, Any]:
+def handle_sql_query(user_input: str, user_id: int = None) -> Dict[str, Any]:
     """SQL查询ACTION的处理入口
     
     工作流程：
@@ -27,7 +27,6 @@ def handle_sql_query(user_input: str, config: Config, user_id: int = None) -> Di
     
     Args:
         user_input: 用户的自然语言查询请求
-        config: 配置对象（用于LLM配置）
         user_id: 当前用户的ID，用于权限控制
         
     Returns:
@@ -43,7 +42,8 @@ def handle_sql_query(user_input: str, config: Config, user_id: int = None) -> Di
         }
     """
     # 初始化组件（数据库使用项目统一配置）
-    llm_client = LLMClient(config)
+    config = Config.from_env()
+    llm_client = LLMClient()
     validator = SQLValidator(dialect="postgres")
     executor = SQLExecutor()  # 不再需要传递config
     

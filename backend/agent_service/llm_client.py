@@ -20,8 +20,8 @@ class LLMClient:
     提供标准化的方法供各个ACTION子目录调用
     """
     
-    def __init__(self, config: Config):
-        self.config = config
+    def __init__(self):
+        self.config = Config.from_env()
         self.client = None
         
         if OPENAI_AVAILABLE and self.config.API_KEY:

@@ -13,13 +13,13 @@ from backend.logger import get_logger
 # 导入各个ACTION子目录的入口函数
 from .sql_query.handler import handle_sql_query
 from .create_template.handler import handle_create_template
+from .send_email.handler import handle_send_email
 
 logger = get_logger(__name__)
 
 
 def process_user_query(
     user_input: str,
-    config: Optional[Config] = None,
     user_id: Optional[int] = None
 ) -> AgentResponse:
     """统一入口函数 - 处理用户的自然语言请求
@@ -31,14 +31,14 @@ def process_user_query(
     
     Args:
         user_input: 用户的自然语言输入
-        config: 配置对象（可选，默认从环境变量加载）
         user_id: 用户ID（CREATE_TEMPLATE等需要用户身份的操作必须提供）
         
     Returns:
         AgentResponse: 结构化的执行结果
     """
     # 加载配置
-    cfg = config or Config.from_env()
+    logger.info("加载 Agent 配置...")
+    cfg = Config.from_env()
     
     # 检查是否启用
     if not cfg.ENABLED:
@@ -66,7 +66,7 @@ def process_user_query(
     
     # 第一步：识别ACTION
     logger.info("正在识别用户意图...")
-    router = ActionRouter(cfg)
+    router = ActionRouter()
     action = router.route(user_input)
     
     logger.info(f"识别到ACTION: {action.value}")
@@ -75,15 +75,21 @@ def process_user_query(
     try:
         if action == ActionType.SQL_QUERY:
             logger.info("开始处理 SQL_QUERY 请求...")
-            result = handle_sql_query(user_input, cfg, user_id=user_id)
+            result = handle_sql_query(user_input, user_id=user_id)
             logger.info("SQL_QUERY 请求处理完成")
             return _format_sql_query_result(result)
         
         elif action == ActionType.CREATE_TEMPLATE:
             logger.info("开始处理 CREATE_TEMPLATE 请求...")
-            result = handle_create_template(user_input, cfg, user_id=user_id)
+            result = handle_create_template(user_input, user_id=user_id)
             logger.info("CREATE_TEMPLATE 请求处理完成")
             return _format_create_template_result(result)
+
+        elif action == ActionType.SEND_EMAIL:
+            logger.info("开始处理 SEND_EMAIL 请求...")
+            result = handle_send_email(user_input, user_id=user_id)
+            logger.info("SEND_EMAIL 请求处理完成")
+            return _format_send_email_result(result)
         
         else:  # ActionType.UNKNOWN
             logger.warning("无法识别用户意图")
@@ -180,5 +186,32 @@ def _format_create_template_result(result: Dict[str, Any]) -> AgentResponse:
     else:
         error_msg = result["data"].get("message", "未知错误")
         items.append(AgentResponseItem(format="text", content=f"模板创建失败：{error_msg}"))
+        
+    return AgentResponse(items=items)
+
+
+def _format_send_email_result(result: Dict[str, Any]) -> AgentResponse:
+    """格式化发送邮件结果为结构化响应
+    
+    Args:
+        result: 发送邮件返回的结果字典
+        
+    Returns:
+        AgentResponse: 结构化响应
+    """
+    items = []
+    
+    if result["status"] == "success":
+        data = result["data"]
+        sent = data.get("sent", 0)
+        total = data.get("total", 0)
+        items.append(AgentResponseItem(
+            format="text", 
+            content=f"邮件发送完成！\n共尝试发送 {total} 封，成功 {sent} 封。"
+        ))
+    
+    else:
+        error_msg = result["data"].get("message", "未知错误")
+        items.append(AgentResponseItem(format="text", content=f"邮件发送失败：{error_msg}"))
         
     return AgentResponse(items=items)

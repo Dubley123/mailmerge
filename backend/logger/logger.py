@@ -14,6 +14,7 @@ _LOG_CONFIG = {
 
 def load_config():
     config_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../config.yaml'))
+    print(f"Loading logger configuration from: {config_path}")
     try:
         with open(config_path, 'r') as f:
             return yaml.safe_load(f)

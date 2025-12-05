@@ -119,7 +119,7 @@
 | 字段名        | 类型                           | 约束                                                         | 说明                          |
 | ------------- | ------------------------------ | ------------------------------------------------------------ | ----------------------------- |
 | id            | BIGINT                         | PRIMARY KEY, AUTO_INCREMENT                                  | 唯一 ID                       |
-| task_id       | BIGINT                         | NOT NULL, FOREIGN KEY → CollectTask(id)                      | 对应 CollectTask 表任务 ID    |
+| task_id       | BIGINT                         | NULL, FOREIGN KEY → CollectTask(id)                      | 对应 CollectTask 表任务 ID    |
 | from_sec_id   | BIGINT                         | NOT NULL, FOREIGN KEY → Secretary(id)                        | 发送秘书 ID                   |
 | to_tea_id     | BIGINT                         | NOT NULL, FOREIGN KEY → Teacher(id)                          | 接收教师 ID                   |
 | sent_at       | DATETIME                       | NULL                                                         | 实际发送时间                  |

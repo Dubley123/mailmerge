@@ -251,7 +251,7 @@ class SentEmail(Base):
     __tablename__ = 'sent_email'
 
     id = Column(BigInteger, primary_key=True, comment='唯一 ID')
-    task_id = Column(BigInteger, ForeignKey('collect_task.id'), nullable=False, comment='对应任务 ID')
+    task_id = Column(BigInteger, ForeignKey('collect_task.id'), nullable=True, comment='对应任务 ID')
     from_sec_id = Column(BigInteger, ForeignKey('secretary.id'), nullable=False, comment='发送秘书 ID')
     to_tea_id = Column(BigInteger, ForeignKey('teacher.id'), nullable=False, comment='接收教师 ID')
     sent_at = Column(DateTime(timezone=True), nullable=True, comment='实际发送时间')
