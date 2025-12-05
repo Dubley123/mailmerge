@@ -113,6 +113,7 @@ def perform_aggregation(db: Session, task: CollectTask, user_id: int) -> dict:
                         pass
                     row_values.append(val)
                 else:
+                    val = None
                     row_values.append(None)
                 
                 # Validation: if validation_rule exists, validate the value

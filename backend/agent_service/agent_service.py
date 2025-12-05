@@ -14,6 +14,7 @@ from backend.logger import get_logger
 from .sql_query.handler import handle_sql_query
 from .create_template.handler import handle_create_template
 from .send_email.handler import handle_send_email
+from .create_task.handler import handle_create_task
 
 logger = get_logger(__name__)
 
@@ -90,6 +91,12 @@ def process_user_query(
             result = handle_send_email(user_input, user_id=user_id)
             logger.info("SEND_EMAIL 请求处理完成")
             return _format_send_email_result(result)
+
+        elif action == ActionType.CREATE_TASK:
+            logger.info("开始处理 CREATE_TASK 请求...")
+            result = handle_create_task(user_input, user_id=user_id)
+            logger.info("CREATE_TASK 请求处理完成")
+            return _format_create_task_result(result)
         
         else:  # ActionType.UNKNOWN
             logger.warning("无法识别用户意图")
@@ -213,5 +220,38 @@ def _format_send_email_result(result: Dict[str, Any]) -> AgentResponse:
     else:
         error_msg = result["data"].get("message", "未知错误")
         items.append(AgentResponseItem(format="text", content=f"邮件发送失败：{error_msg}"))
+        
+    return AgentResponse(items=items)
+
+
+def _format_create_task_result(result: Dict[str, Any]) -> AgentResponse:
+    """格式化创建任务结果为结构化响应
+    
+    Args:
+        result: 创建任务返回的结果字典
+        
+    Returns:
+        AgentResponse: 结构化响应
+    """
+    items = []
+    
+    if result["status"] == "success":
+        data = result["data"]
+        task_name = data.get("task_name", "未命名任务")
+        teacher_count = data.get("teacher_count", 0)
+        
+        content = f"任务创建成功！\n任务名称：{task_name}\n已分配给 {teacher_count} 位教师。\n您可以在任务管理页面查看详情。"
+        
+        if data.get("warning"):
+            content += f"\n\n⚠️ 注意：\n{data['warning']}"
+            
+        items.append(AgentResponseItem(
+            format="text", 
+            content=content
+        ))
+    
+    else:
+        error_msg = result["data"].get("message", "未知错误")
+        items.append(AgentResponseItem(format="text", content=f"任务创建失败：{error_msg}"))
         
     return AgentResponse(items=items)

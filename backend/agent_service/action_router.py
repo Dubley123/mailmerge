@@ -15,6 +15,7 @@ class ActionType(Enum):
     SQL_QUERY = "SQL_QUERY"           # SQL查询
     CREATE_TEMPLATE = "CREATE_TEMPLATE"  # 创建模板
     SEND_EMAIL = "SEND_EMAIL"          # 发送邮件
+    CREATE_TASK = "CREATE_TASK"        # 创建任务
     UNKNOWN = "UNKNOWN"                # 未知/无法识别
 
 
@@ -44,7 +45,8 @@ class ActionRouter:
 1. `SQL_QUERY`: 用户想要查询数据库信息（查询、统计、列出、显示等）
 2. `CREATE_TEMPLATE`: 用户想要创建数据收集模板（创建模板、生成表单、设计模板等）
 3. `SEND_EMAIL`: 用户想要发送邮件（发送邮件、发信、通知某人等）
-4. `UNKNOWN`: 无法识别的请求
+4. `CREATE_TASK`: 用户想要创建数据收集任务（发布任务、发起收集、创建任务等）
+5. `UNKNOWN`: 无法识别的请求
 
 请根据用户输入返回对应的操作类型。只返回类型名称，不要有其他内容。"""
 
@@ -67,6 +69,8 @@ class ActionRouter:
                 return ActionType.CREATE_TEMPLATE
             elif "SEND_EMAIL" in result or "EMAIL" in result or "SEND MAIL" in result:
                 return ActionType.SEND_EMAIL
+            elif "CREATE_TASK" in result or "TASK" in result:
+                return ActionType.CREATE_TASK
             else:
                 return ActionType.UNKNOWN
                 
