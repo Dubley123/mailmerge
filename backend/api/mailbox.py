@@ -74,24 +74,153 @@ def get_mailbox_tasks(
             type="normal"
         ))
     
-    # Check for unassigned emails (Trash)
-    unassigned_count = db.query(func.count(ReceivedEmail.id)).filter(
+    # Check for unassigned emails (Unassigned)
+    unassigned_received_count = db.query(func.count(ReceivedEmail.id)).filter(
         ReceivedEmail.to_sec_id == current_user.id,
         ReceivedEmail.task_id == None
     ).scalar()
+
+    unassigned_sent_count = db.query(func.count(SentEmail.id)).filter(
+        SentEmail.from_sec_id == current_user.id,
+        SentEmail.task_id == None
+    ).scalar()
     
-    if unassigned_count > 0:
-        result.append(TaskFolder(
-            id=-1,
-            name="无法识别归属 (垃圾箱)",
-            description="Unassigned emails",
-            sent_count=0,
-            received_count=unassigned_count,
-            created_at=None,
-            type="trash"
-        ))
+    # Always show the unassigned folder
+    result.append(TaskFolder(
+        id=-1,
+        name="未归档邮件",
+        description="Unassigned emails",
+        sent_count=unassigned_sent_count,
+        received_count=unassigned_received_count,
+        created_at=None,
+        type="unassigned"
+    ))
     
     return result
+
+@router.get("/tasks/{task_id}/emails", response_model=List[EmailItem])
+def get_task_emails(
+    task_id: int,
+    type: str = Query(..., regex="^(sent|received)$"),
+    db: Session = Depends(get_db_session),
+    current_user: Secretary = Depends(get_current_user)
+):
+    """
+    Get emails for a specific task.
+    """
+    task = None
+    if task_id == -1:
+        # Unassigned folder - no task object
+        pass
+    else:
+        # Verify task ownership
+        task = db.query(CollectTask).filter(CollectTask.id == task_id, CollectTask.created_by == current_user.id).first()
+        if not task:
+            raise HTTPException(status_code=404, detail="Task not found")
+
+    emails = []
+    
+    if type == "sent":
+        if task_id == -1:
+            # Query Unassigned Sent Emails
+            sent_emails = db.query(SentEmail).filter(
+                SentEmail.from_sec_id == current_user.id,
+                SentEmail.task_id == None
+            ).order_by(desc(SentEmail.sent_at)).all()
+        else:
+            # Query Sent Emails for Task
+            sent_emails = db.query(SentEmail).filter(SentEmail.task_id == task_id).order_by(desc(SentEmail.sent_at)).all()
+        
+        for email in sent_emails:
+            # Resolve Recipient (Teacher)
+            teacher = db.query(Teacher).filter(Teacher.id == email.to_tea_id).first()
+            recipient_name = teacher.name if teacher else "Unknown"
+            recipient_email = teacher.email if teacher else "Unknown"
+            
+            # Resolve Attachment
+            att_data = None
+            if email.attachment_id:
+                att = db.query(SentAttachment).filter(SentAttachment.id == email.attachment_id).first()
+                if att:
+                    att_data = EmailAttachment(
+                        id=att.id,
+                        file_name=att.file_name or "attachment",
+                        file_size=att.file_size,
+                        content_type=att.content_type,
+                        download_url=f"/api/files/sent/{att.id}" # Placeholder URL structure
+                    )
+
+            # Parse Content
+            content = email.mail_content or {}
+            subject = content.get("subject", f"Task: {task.name if task else 'Unassigned'}")
+            body = content.get("body", "No content")
+            snippet = body[:100] + "..." if len(body) > 100 else body
+
+            emails.append(EmailItem(
+                id=email.id,
+                subject=subject,
+                sender_name=current_user.name, # Sent by me
+                sender_email=current_user.email,
+                recipient_name=recipient_name,
+                recipient_email=recipient_email,
+                timestamp=email.sent_at or email.created_at,
+                snippet=snippet,
+                has_attachment=att_data is not None,
+                attachment=att_data,
+                body=body
+            ))
+
+    elif type == "received":
+        if task_id == -1:
+            # Query Unassigned Received Emails
+            received_emails = db.query(ReceivedEmail).filter(
+                ReceivedEmail.to_sec_id == current_user.id,
+                ReceivedEmail.task_id == None
+            ).order_by(desc(ReceivedEmail.received_at)).all()
+        else:
+            # Query Received Emails for Task
+            received_emails = db.query(ReceivedEmail).filter(ReceivedEmail.task_id == task_id).order_by(desc(ReceivedEmail.received_at)).all()
+        
+        for email in received_emails:
+            # Resolve Sender (Teacher)
+            teacher = db.query(Teacher).filter(Teacher.id == email.from_tea_id).first()
+            sender_name = teacher.name if teacher else "Unknown"
+            sender_email = teacher.email if teacher else "Unknown"
+            
+            # Resolve Attachment
+            att_data = None
+            if email.attachment_id:
+                att = db.query(ReceivedAttachment).filter(ReceivedAttachment.id == email.attachment_id).first()
+                if att:
+                    att_data = EmailAttachment(
+                        id=att.id,
+                        file_name=att.file_name or "attachment",
+                        file_size=att.file_size,
+                        content_type=att.content_type,
+                        download_url=f"/api/files/received/{att.id}" # Placeholder URL structure
+                    )
+
+            # Parse Content
+            content = email.mail_content or {}
+            subject = content.get("subject", "No Subject")
+            body = content.get("body", "No content")
+            snippet = body[:100] + "..." if len(body) > 100 else body
+
+            emails.append(EmailItem(
+                id=email.id,
+                subject=subject,
+                sender_name=sender_name,
+                sender_email=sender_email,
+                recipient_name=current_user.name, # Received by me
+                recipient_email=current_user.email,
+                timestamp=email.received_at,
+                snippet=snippet,
+                has_attachment=att_data is not None,
+                attachment=att_data,
+                body=body
+            ))
+            
+    return emails
 
 @router.get("/tasks/{task_id}/emails", response_model=List[EmailItem])
 def get_task_emails(

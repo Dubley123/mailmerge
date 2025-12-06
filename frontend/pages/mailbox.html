@@ -1,4 +1,4 @@
-<link rel="stylesheet" href="/frontend/static/css/mailbox.css?v=2a0a4aa3">
+<link rel="stylesheet" href="/frontend/static/css/mailbox.css?v=19cd17bf">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
 <div class="mailbox-container">
@@ -87,16 +87,14 @@
                 tasks.forEach(task => {
                     const card = document.createElement('div');
                     card.className = 'folder-card';
-                    if (task.type === 'trash') {
-                        card.classList.add('trash');
+                    if (task.type === 'unassigned') {
+                        card.classList.add('unassigned');
                     }
                     card.onclick = () => this.openTask(task.id, task.name);
                     
-                    const iconClass = task.type === 'trash' ? 'fa-trash-alt' : 'fa-folder';
+                    const iconClass = task.type === 'unassigned' ? 'fa-folder-open' : 'fa-folder';
                     
-                    // For trash folder, we might not want to show sent count if it's 0
-                    const sentStats = task.type === 'trash' ? '' : 
-                        `<span style="margin: 0 5px;">|</span>
+                    const sentStats = `<span style="margin: 0 5px;">|</span>
                          <span title="Sent"><i class="fas fa-paper-plane"></i> ${task.sent_count}</span>`;
 
                     card.innerHTML = `
