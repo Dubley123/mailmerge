@@ -13,6 +13,7 @@ import time
 import os
 import yaml
 from datetime import datetime, timezone
+from backend.utils.time_utils import ensure_utc
 from .utils import read_last_fetch_timestamp, write_last_fetch_timestamp
 from backend.logger import get_logger
 
@@ -119,7 +120,9 @@ def fetch_emails_job():
             job_log.set_stat("latest_ts_seen", latest_ts.isoformat())
         
         if latest_ts:
-            job_log.log_step(f"Updating last fetch timestamp to {latest_ts}")
+            # Convert to Beijing Time for logging consistency
+            latest_ts_bj = ensure_utc(latest_ts)
+            job_log.log_step(f"Updating last fetch timestamp to {latest_ts_bj}")
             write_last_fetch_timestamp(latest_ts)
         else:
             job_log.log_step("No new emails found or no timestamp update needed.")

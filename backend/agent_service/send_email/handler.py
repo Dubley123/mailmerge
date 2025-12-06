@@ -2,7 +2,8 @@ from typing import Dict, Any
 from ..config import Config
 from ..llm_client import LLMClient
 from .prompt_generator import generate_send_email_prompt
-from .utils import fetch_teachers_for_secretary
+from .utils import fetch_teachers_for_secretary, fetch_tasks_for_secretary
+from .task_inference import infer_task_id
 from backend.logger import get_logger
 from backend.database.db_config import get_session_factory
 from backend.utils.encryption import decrypt_value
@@ -32,6 +33,13 @@ def handle_send_email(user_input: str, user_id: int = None) -> Dict[str, Any]:
     logger.info(f"Fetched {len(teacher_list)} teachers for secretary ID {user_id}")
     logger.info(f"Teacher list:\n{chr(10).join([str(t) for t in teacher_list])}")
     
+    # Infer Task ID
+    tasks = fetch_tasks_for_secretary(user_id)
+    inferred_task_id = infer_task_id(user_input, tasks)
+    if inferred_task_id:
+        logger.info(f"Inferred related Task ID: {inferred_task_id}")
+    else:
+        logger.info("No related Task ID inferred.")
     
     # Generate prompt (embedding teacher list)
     prompt_data = generate_send_email_prompt(user_id=user_id, teacher_list=teacher_list)
@@ -136,7 +144,7 @@ def handle_send_email(user_input: str, user_id: int = None) -> Dict[str, Any]:
                     # Record to DB
                     status = EmailStatus.SENT if result.get('success') else EmailStatus.FAILED
                     sent_email = SentEmail(
-                        task_id=None,
+                        task_id=inferred_task_id,
                         from_sec_id=sec.id,
                         to_tea_id=recipient_teacher_ids[idx] if idx < len(recipient_teacher_ids) else None,
                         sent_at=get_utc_now() if result.get('success') else None,
