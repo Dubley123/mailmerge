@@ -22,10 +22,12 @@ def generate_create_task_prompt(user_id: int, templates: List[Dict[str, Any]], t
             teachers_str += f"- ID: {t['id']}, 姓名: {t['name']}, 邮箱: {t['email']}, 职称: {t['title'] or '无'}\n"
 
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    current_weekday = datetime.now().isoweekday()
 
     system_prompt = f"""你是一个智能任务创建助手。你的目标是根据用户的自然语言描述，提取创建收集任务所需的信息。
 
 当前时间：{current_time}
+当前星期：{current_weekday}
 
 {templates_str}
 {teachers_str}
