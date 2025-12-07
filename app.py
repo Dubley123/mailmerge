@@ -111,7 +111,7 @@ def main():
     print("🚀 Initializing Application...\n")
     try:
         # Create FastAPI app
-        app = FastAPI(title="MailMerge System API", lifespan=lifespan)
+        app = FastAPI(title="EduDataAggregator System API", lifespan=lifespan)
 
         # CORS
         app.add_middleware(

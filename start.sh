@@ -5,7 +5,7 @@
 cd "$(dirname "$0")"
 
 # 0. Print Banner (Always output first)
-echo "🚀 Starting MailMerge System..."
+echo "🚀 Starting EduDataAggregator System..."
 echo "  📍 Frontend: http://localhost:8000"
 echo "  📍 API Docs: http://localhost:8000/docs"
 echo ""
