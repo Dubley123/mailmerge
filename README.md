@@ -156,7 +156,7 @@
 * **交互方式**: 通过 JavaScript 的 `fetch` API 与后端 FastAPI 接口进行异步通信。
 
 *   **主要模块**:
-    
+  
     *   HTML
     
         *   **登录/注册**: `login.html`, `register.html`
@@ -282,12 +282,12 @@ pip install -r requirements.txt
 1. **启动应用**：项目提供了一键启动脚本 `start.sh`。
 
     *   **前台模式**：
-        
+      
         ```bash
         ./start.sh
         ```
     *   **后台模式**：
-        
+      
         ```bash
         ./start.sh --backend
         ```
